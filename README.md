@@ -82,6 +82,5 @@ real project:
 | `@site-template/frontend` | `frontend/package.json`, `frontend/angular.json` | Real npm/project name |
 | Placeholder SVGs in `frontend/public/assets/images/**`, and the missing hero video source in `hero-video.component.html` | — | Real logo, photos, and hero video |
 
-After renaming, regenerate lockfiles (`uv sync` in `backend/` and `infra/`,
-`npm install` in `frontend/`) since `backend/uv.lock` and `infra/uv.lock` were
-removed along with the package rename.
+After renaming the Python packages, regenerate lockfiles (`uv sync` in
+`backend/` and `infra/`) so `uv.lock` picks up the new project name.
