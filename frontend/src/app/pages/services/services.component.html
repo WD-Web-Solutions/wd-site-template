@@ -1,0 +1,20 @@
+@for(service of services; track service.slug)
+{
+
+<app-ui-card
+
+[title]="service.title"
+
+[description]="service.description"
+
+[category]="service.category"
+
+[icon]="service.icon"
+
+[link]="'/services/' + service.slug"
+
+>
+
+</app-ui-card>
+
+}
