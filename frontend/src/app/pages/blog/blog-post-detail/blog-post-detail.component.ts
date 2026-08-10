@@ -139,7 +139,11 @@ export class BlogPostDetailComponent implements OnInit {
       .subscribe({
         next: post => {
           this.post.set(post);
-          this.seoService.updatePage(`${post.title} | WD Web Solutions`, post.excerpt);
+          this.seoService.updatePage(
+            `${post.title} | WD Web Solutions`,
+            post.excerpt,
+            post.coverImageUrl ?? undefined
+          );
           this.loadComments();
         },
         error: () => this.notFound.set(true)

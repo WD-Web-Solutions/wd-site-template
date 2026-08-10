@@ -49,7 +49,11 @@ export class ItemDetailComponent implements OnInit {
       .subscribe({
         next: item => {
           this.item.set(item);
-          this.seoService.updatePage(`${item.name} | WD Web Solutions`, item.description);
+          this.seoService.updatePage(
+            `${item.name} | WD Web Solutions`,
+            item.description,
+            item.imageUrl ?? undefined
+          );
         },
         error: () => this.errorMessage.set('That item could not be found.')
       });
