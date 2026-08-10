@@ -1,6 +1,8 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 
 import { RouterOutlet } from '@angular/router';
+
+import { AnalyticsService } from './core/services/analytics.service';
 
 
 @Component({
@@ -25,5 +27,10 @@ import { RouterOutlet } from '@angular/router';
 })
 export class AppComponent {
 
+  private readonly analyticsService = inject(AnalyticsService);
+
+  constructor() {
+    this.analyticsService.init();
+  }
 
 }
