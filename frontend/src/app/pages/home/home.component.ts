@@ -10,6 +10,8 @@ import { SeoService } from '../../core/services/seo.service';
 
 import { HeroVideoComponent } from '../../shared/components/hero-video/hero-video.component';
 
+import { TestimonialCarouselComponent } from '../../shared/components/testimonial-carousel/testimonial-carousel.component';
+
 
 
 @Component({
@@ -24,7 +26,9 @@ import { HeroVideoComponent } from '../../shared/components/hero-video/hero-vide
 
     UiCardComponent,
 
-    HeroVideoComponent
+    HeroVideoComponent,
+
+    TestimonialCarouselComponent
 
   ],
 

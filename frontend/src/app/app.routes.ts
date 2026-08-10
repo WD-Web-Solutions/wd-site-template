@@ -266,6 +266,28 @@ export const routes: Routes = [
 
 
       {
+        path: 'testimonials/write',
+
+        loadComponent: () =>
+          import('./pages/testimonials/write-testimonial/write-testimonial.component')
+            .then(m => m.WriteTestimonialComponent)
+
+      },
+
+
+      {
+        path: 'admin/testimonials',
+
+        canActivate: [adminGuard],
+
+        loadComponent: () =>
+          import('./pages/admin-testimonials/admin-testimonials.component')
+            .then(m => m.AdminTestimonialsComponent)
+
+      },
+
+
+      {
         path: 'privacy-policy',
 
         loadComponent: () =>
