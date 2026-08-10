@@ -22,6 +22,25 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <!-- Structured data. Only fields we actually have real content for are
+       included; fill in telephone/streetAddress/sameAs (social profiles)
+       once they exist rather than leaving placeholder values. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "WD Web Solutions",
+    "description": "Professional website design, web application development, e-commerce, and ongoing support for growing businesses.",
+    "email": "zachw@wdwebsolutions.com",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Austin",
+      "addressRegion": "TX",
+      "addressCountry": "US"
+    }
+  }
+  </script>
 </head>
 <body>
   <app-root></app-root>
