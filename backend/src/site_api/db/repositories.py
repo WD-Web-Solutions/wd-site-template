@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from site_api.db.models import (
     AccountNoteRecord,
+    AppointmentRecord,
     BlogPostRecord,
     CommentRecord,
     ContactRequestRecord,
@@ -22,6 +23,7 @@ from site_api.domain.blog import (
     TagSubscription,
 )
 from site_api.domain.contacts import ContactRequest
+from site_api.domain.scheduling import Appointment, AppointmentStatus, SlotNotFoundError
 from site_api.domain.users import AccountStatus, User, UserNotFoundError, UserRole
 
 
@@ -366,3 +368,96 @@ class SqlAlchemyContactRequestRepository:
         )
         await self._session.flush()
         return contact_request
+
+
+def _to_domain_appointment(record: AppointmentRecord) -> Appointment:
+    return Appointment(
+        id=record.id,
+        starts_at=record.starts_at,
+        ends_at=record.ends_at,
+        status=AppointmentStatus(record.status),
+        client_id=record.client_id,
+        client_name=record.client_name,
+        client_email=record.client_email,
+        notes=record.notes,
+        created_by_admin_id=record.created_by_admin_id,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+class SqlAlchemyAppointmentRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, appointment: Appointment) -> Appointment:
+        self._session.add(
+            AppointmentRecord(
+                id=appointment.id,
+                starts_at=appointment.starts_at,
+                ends_at=appointment.ends_at,
+                status=appointment.status.value,
+                client_id=appointment.client_id,
+                client_name=appointment.client_name,
+                client_email=appointment.client_email,
+                notes=appointment.notes,
+                created_by_admin_id=appointment.created_by_admin_id,
+                created_at=appointment.created_at,
+                updated_at=appointment.updated_at,
+            )
+        )
+        await self._session.flush()
+        return appointment
+
+    async def update(self, appointment: Appointment) -> Appointment:
+        record = await self._session.get(AppointmentRecord, appointment.id)
+        if record is None:
+            raise SlotNotFoundError
+        record.starts_at = appointment.starts_at
+        record.ends_at = appointment.ends_at
+        record.status = appointment.status.value
+        record.client_id = appointment.client_id
+        record.client_name = appointment.client_name
+        record.client_email = appointment.client_email
+        record.notes = appointment.notes
+        record.updated_at = appointment.updated_at
+        await self._session.flush()
+        return _to_domain_appointment(record)
+
+    async def delete(self, appointment_id: UUID) -> None:
+        record = await self._session.get(AppointmentRecord, appointment_id)
+        if record is None:
+            raise SlotNotFoundError
+        await self._session.delete(record)
+        await self._session.flush()
+
+    async def get_by_id(self, appointment_id: UUID) -> Appointment | None:
+        record = await self._session.get(AppointmentRecord, appointment_id)
+        return None if record is None else _to_domain_appointment(record)
+
+    async def list_open_upcoming(self, now: datetime) -> list[Appointment]:
+        result = await self._session.execute(
+            select(AppointmentRecord)
+            .where(
+                AppointmentRecord.status == AppointmentStatus.OPEN.value,
+                AppointmentRecord.starts_at >= now,
+            )
+            .order_by(AppointmentRecord.starts_at)
+        )
+        return [_to_domain_appointment(record) for record in result.scalars().all()]
+
+    async def list_for_client(self, client_id: UUID) -> list[Appointment]:
+        result = await self._session.execute(
+            select(AppointmentRecord)
+            .where(AppointmentRecord.client_id == client_id)
+            .order_by(AppointmentRecord.starts_at.desc())
+        )
+        return [_to_domain_appointment(record) for record in result.scalars().all()]
+
+    async def list_all(self, status: AppointmentStatus | None = None) -> list[Appointment]:
+        query = select(AppointmentRecord)
+        if status is not None:
+            query = query.where(AppointmentRecord.status == status.value)
+        query = query.order_by(AppointmentRecord.starts_at.desc())
+        result = await self._session.execute(query)
+        return [_to_domain_appointment(record) for record in result.scalars().all()]

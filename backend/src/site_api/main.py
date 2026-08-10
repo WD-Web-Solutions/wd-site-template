@@ -12,6 +12,7 @@ from site_api.api.dependencies import (
     get_blog_service,
     get_contact_request_service,
     get_file_storage,
+    get_scheduling_service,
 )
 from site_api.api.routes import (
     admin,
@@ -20,6 +21,8 @@ from site_api.api.routes import (
     blog_admin,
     contact_requests,
     health,
+    scheduling,
+    scheduling_admin,
 )
 from site_api.core.config import Settings
 from site_api.core.logging import configure_logging
@@ -29,12 +32,14 @@ from site_api.services.admin import AdminService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.scheduling import SchedulingService
 
 ContactServiceProvider = Callable[[], ContactRequestService]
 AuthServiceProvider = Callable[[], AuthService]
 AdminServiceProvider = Callable[[], AdminService]
 BlogServiceProvider = Callable[[], BlogService]
 FileStorageProvider = Callable[[], FileStorage]
+SchedulingServiceProvider = Callable[[], SchedulingService]
 
 
 def create_app(
@@ -44,6 +49,7 @@ def create_app(
     admin_service_provider: AdminServiceProvider | None = None,
     blog_service_provider: BlogServiceProvider | None = None,
     file_storage_provider: FileStorageProvider | None = None,
+    scheduling_service_provider: SchedulingServiceProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     configure_logging(resolved_settings.log_level)
@@ -83,6 +89,8 @@ def create_app(
     application.include_router(admin.router, prefix=resolved_settings.api_prefix)
     application.include_router(blog.router, prefix=resolved_settings.api_prefix)
     application.include_router(blog_admin.router, prefix=resolved_settings.api_prefix)
+    application.include_router(scheduling.router, prefix=resolved_settings.api_prefix)
+    application.include_router(scheduling_admin.router, prefix=resolved_settings.api_prefix)
 
     if contact_service_provider is not None:
         application.dependency_overrides[get_contact_request_service] = contact_service_provider
@@ -98,6 +106,9 @@ def create_app(
 
     if file_storage_provider is not None:
         application.dependency_overrides[get_file_storage] = file_storage_provider
+
+    if scheduling_service_provider is not None:
+        application.dependency_overrides[get_scheduling_service] = scheduling_service_provider
 
     return application
 

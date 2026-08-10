@@ -17,12 +17,14 @@ from site_api.domain.blog import (
     TagSubscription,
 )
 from site_api.domain.contacts import ContactRequest
+from site_api.domain.scheduling import Appointment, AppointmentStatus, SlotNotFoundError
 from site_api.domain.users import AccountStatus, User, UserNotFoundError, UserRole
 from site_api.main import create_app
 from site_api.services.admin import AdminService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.scheduling import SchedulingService
 
 
 class InMemoryContactRequestRepository:
@@ -195,6 +197,55 @@ class InMemoryTagSubscriptionRepository:
         return [sub for sub in self.subscriptions if sub.user_id == user_id]
 
 
+class InMemoryAppointmentRepository:
+    def __init__(self) -> None:
+        self.appointments: list[Appointment] = []
+
+    async def add(self, appointment: Appointment) -> Appointment:
+        self.appointments.append(appointment)
+        return appointment
+
+    async def update(self, appointment: Appointment) -> Appointment:
+        for index, existing in enumerate(self.appointments):
+            if existing.id == appointment.id:
+                self.appointments[index] = appointment
+                return appointment
+        raise SlotNotFoundError
+
+    async def delete(self, appointment_id: UUID) -> None:
+        for index, appointment in enumerate(self.appointments):
+            if appointment.id == appointment_id:
+                del self.appointments[index]
+                return
+        raise SlotNotFoundError
+
+    async def get_by_id(self, appointment_id: UUID) -> Appointment | None:
+        for appointment in self.appointments:
+            if appointment.id == appointment_id:
+                return appointment
+        return None
+
+    async def list_open_upcoming(self, now: datetime) -> list[Appointment]:
+        results = [
+            appointment
+            for appointment in self.appointments
+            if appointment.status is AppointmentStatus.OPEN and appointment.starts_at >= now
+        ]
+        return sorted(results, key=lambda appointment: appointment.starts_at)
+
+    async def list_for_client(self, client_id: UUID) -> list[Appointment]:
+        results = [
+            appointment for appointment in self.appointments if appointment.client_id == client_id
+        ]
+        return sorted(results, key=lambda appointment: appointment.starts_at, reverse=True)
+
+    async def list_all(self, status: AppointmentStatus | None = None) -> list[Appointment]:
+        results = self.appointments
+        if status is not None:
+            results = [appointment for appointment in results if appointment.status is status]
+        return sorted(results, key=lambda appointment: appointment.starts_at, reverse=True)
+
+
 class FakeFileStorage:
     def __init__(self) -> None:
         self.saved: list[tuple[bytes, str]] = []
@@ -270,6 +321,18 @@ def file_storage() -> FakeFileStorage:
 
 
 @pytest.fixture
+def appointment_repository() -> InMemoryAppointmentRepository:
+    return InMemoryAppointmentRepository()
+
+
+@pytest.fixture
+def scheduling_service(
+    appointment_repository: InMemoryAppointmentRepository,
+) -> SchedulingService:
+    return SchedulingService(appointment_repository)
+
+
+@pytest.fixture
 def blog_service(
     blog_post_repository: InMemoryBlogPostRepository,
     comment_repository: InMemoryCommentRepository,
@@ -285,6 +348,7 @@ def app(
     admin_service: AdminService,
     blog_service: BlogService,
     file_storage: FakeFileStorage,
+    scheduling_service: SchedulingService,
 ) -> FastAPI:
     settings = Settings(environment="test", cors_origins=[], database_url=None)
     return create_app(
@@ -294,6 +358,7 @@ def app(
         admin_service_provider=lambda: admin_service,
         blog_service_provider=lambda: blog_service,
         file_storage_provider=lambda: file_storage,
+        scheduling_service_provider=lambda: scheduling_service,
     )
 
 

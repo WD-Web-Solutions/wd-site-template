@@ -13,6 +13,7 @@ from site_api.core.storage import LocalFileStorage
 from site_api.db.database import Database, DatabaseNotConfiguredError
 from site_api.db.repositories import (
     SqlAlchemyAccountNoteRepository,
+    SqlAlchemyAppointmentRepository,
     SqlAlchemyBlogPostRepository,
     SqlAlchemyCommentRepository,
     SqlAlchemyContactRequestRepository,
@@ -24,6 +25,7 @@ from site_api.services.admin import AdminService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.scheduling import SchedulingService
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -169,6 +171,18 @@ def get_blog_service(
     ],
 ) -> BlogService:
     return BlogService(post_repository, comment_repository, subscription_repository)
+
+
+def get_appointment_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyAppointmentRepository:
+    return SqlAlchemyAppointmentRepository(session)
+
+
+def get_scheduling_service(
+    repository: Annotated[SqlAlchemyAppointmentRepository, Depends(get_appointment_repository)],
+) -> SchedulingService:
+    return SchedulingService(repository)
 
 
 def get_file_storage(settings: Annotated[Settings, Depends(get_settings)]) -> LocalFileStorage:

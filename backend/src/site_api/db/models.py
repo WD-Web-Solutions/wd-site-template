@@ -100,6 +100,32 @@ class TagSubscriptionRecord(Base):
     )
 
 
+class AppointmentRecord(Base):
+    __tablename__ = "appointments"
+
+    id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    client_id: Mapped[UUID | None] = mapped_column(
+        PostgresUUID(as_uuid=True), ForeignKey("users.id"), index=True
+    )
+    client_name: Mapped[str | None] = mapped_column(String(200))
+    client_email: Mapped[str | None] = mapped_column(String(254))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_by_admin_id: Mapped[UUID] = mapped_column(
+        PostgresUUID(as_uuid=True), ForeignKey("users.id")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+
 class ContactRequestRecord(Base):
     __tablename__ = "contact_requests"
 

@@ -122,6 +122,16 @@ export const routes: Routes = [
 
 
       {
+        path: 'schedule',
+
+        loadComponent: () =>
+          import('./pages/schedule/schedule.component')
+            .then(m => m.ScheduleComponent)
+
+      },
+
+
+      {
         path: 'admin',
 
         canActivate: [adminGuard],
@@ -129,6 +139,18 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/admin/admin.component')
             .then(m => m.AdminComponent)
+
+      },
+
+
+      {
+        path: 'admin/schedule',
+
+        canActivate: [adminGuard],
+
+        loadComponent: () =>
+          import('./pages/admin-schedule/admin-schedule.component')
+            .then(m => m.AdminScheduleComponent)
 
       },
 
