@@ -24,6 +24,7 @@ from site_api.domain.marketplace import (
     WishlistItem,
     WishlistRepository,
 )
+from site_api.services.email import EmailService
 
 MAX_LINE_QUANTITY = 20
 
@@ -69,6 +70,7 @@ class MarketplaceService:
         currency: str,
         success_url_template: str,
         cancel_url: str,
+        email_service: EmailService | None = None,
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
@@ -80,6 +82,7 @@ class MarketplaceService:
         self._currency = currency
         self._success_url_template = success_url_template
         self._cancel_url = cancel_url
+        self._email = email_service or EmailService(None, None, None)
         self._id_factory = id_factory
         self._clock = clock
 
@@ -257,12 +260,16 @@ class MarketplaceService:
         session_obj = event["data"]["object"].to_dict()
 
         if event_type == "checkout.session.completed":
-            await self._apply_status(
+            paid_order = await self._apply_status(
                 session_obj["id"],
                 OrderStatus.PAID,
                 payment_intent_id=session_obj.get("payment_intent"),
                 customer_email=(session_obj.get("customer_details") or {}).get("email"),
             )
+            if paid_order is not None:
+                items = await self._orders.list_items_for_order(paid_order.id)
+                await self._email.send_order_confirmation(paid_order, items)
+                await self._email.notify_admin_new_order(paid_order, items)
         elif event_type == "checkout.session.expired":
             await self._apply_status(session_obj["id"], OrderStatus.EXPIRED)
         elif event_type == "checkout.session.async_payment_failed":
@@ -276,19 +283,22 @@ class MarketplaceService:
         status: OrderStatus,
         payment_intent_id: str | None = None,
         customer_email: str | None = None,
-    ) -> None:
+    ) -> Order | None:
         order = await self._orders.get_by_session_id(stripe_checkout_session_id)
         if order is None:
             logger.bind(session_id=stripe_checkout_session_id).warning(
                 "Webhook referenced an unknown checkout session"
             )
-            return
+            return None
 
         if order.status is not OrderStatus.OPEN:
-            return
+            return None
 
-        await self._orders.update_status(order.id, status, payment_intent_id, customer_email)
+        updated = await self._orders.update_status(
+            order.id, status, payment_intent_id, customer_email
+        )
         logger.bind(order_id=str(order.id), status=status.value).info("Order status updated")
+        return updated
 
     # --- Orders --------------------------------------------------------------
 

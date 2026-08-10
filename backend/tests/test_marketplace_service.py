@@ -18,6 +18,7 @@ from site_api.domain.marketplace import (
     OrderNotFoundError,
     OrderStatus,
 )
+from site_api.services.email import EmailService
 from site_api.services.marketplace import (
     CartLine,
     CreateCheckoutSession,
@@ -26,6 +27,7 @@ from site_api.services.marketplace import (
     UpdateItem,
 )
 from tests.conftest import (
+    FakeSesClient,
     FakeStripeClient,
     InMemoryMarketplaceItemRepository,
     InMemoryOrderRepository,
@@ -46,6 +48,7 @@ def service(
     order_repository: InMemoryOrderRepository,
     wishlist_repository: InMemoryWishlistRepository,
     fake_stripe_client: FakeStripeClient,
+    email_service: EmailService,
 ) -> MarketplaceService:
     ids = iter(UUID(int=n) for n in count(1))
     return MarketplaceService(
@@ -57,6 +60,7 @@ def service(
         "usd",
         "http://localhost:4200/marketplace/success?session_id={CHECKOUT_SESSION_ID}",
         "http://localhost:4200/cart",
+        email_service,
         id_factory=lambda: next(ids),
         clock=lambda: NOW,
     )
@@ -324,6 +328,52 @@ async def test_webhook_completed_marks_order_paid(service: MarketplaceService) -
 
 
 @pytest.mark.asyncio
+async def test_webhook_completed_sends_confirmation_and_admin_emails(
+    service: MarketplaceService,
+    fake_ses_client: FakeSesClient,
+) -> None:
+    item = await service.create_item(_create_command())
+    order, _ = await service.create_checkout_session(
+        CreateCheckoutSession(
+            lines=[CartLine(item_id=item.id, quantity=1)],
+            customer_id=None,
+            customer_email=None,
+        )
+    )
+
+    payload = _event_payload(
+        "checkout.session.completed",
+        order.stripe_checkout_session_id,
+        customer_email="guest@example.com",
+    )
+    await service.handle_webhook_event(payload, _sign(payload))
+
+    assert len(fake_ses_client.sent) == 2
+    recipients = {call["Destination"]["ToAddresses"][0] for call in fake_ses_client.sent}
+    assert recipients == {"guest@example.com", "admin@example.com"}
+
+
+@pytest.mark.asyncio
+async def test_webhook_expired_does_not_send_order_emails(
+    service: MarketplaceService,
+    fake_ses_client: FakeSesClient,
+) -> None:
+    item = await service.create_item(_create_command())
+    order, _ = await service.create_checkout_session(
+        CreateCheckoutSession(
+            lines=[CartLine(item_id=item.id, quantity=1)],
+            customer_id=None,
+            customer_email=None,
+        )
+    )
+
+    payload = _event_payload("checkout.session.expired", order.stripe_checkout_session_id)
+    await service.handle_webhook_event(payload, _sign(payload))
+
+    assert fake_ses_client.sent == []
+
+
+@pytest.mark.asyncio
 async def test_webhook_expired_marks_order_expired(service: MarketplaceService) -> None:
     item = await service.create_item(_create_command())
     order, _ = await service.create_checkout_session(
@@ -398,6 +448,27 @@ async def test_webhook_is_idempotent_on_duplicate_delivery(service: MarketplaceS
 
     updated = await service.get_order_by_session_id(order.stripe_checkout_session_id)
     assert updated.status is OrderStatus.PAID
+
+
+@pytest.mark.asyncio
+async def test_duplicate_completed_delivery_only_emails_once(
+    service: MarketplaceService,
+    fake_ses_client: FakeSesClient,
+) -> None:
+    item = await service.create_item(_create_command())
+    order, _ = await service.create_checkout_session(
+        CreateCheckoutSession(
+            lines=[CartLine(item_id=item.id, quantity=1)],
+            customer_id=None,
+            customer_email=None,
+        )
+    )
+
+    payload = _event_payload("checkout.session.completed", order.stripe_checkout_session_id)
+    await service.handle_webhook_event(payload, _sign(payload))
+    await service.handle_webhook_event(payload, _sign(payload))
+
+    assert len(fake_ses_client.sent) == 2
 
 
 @pytest.mark.asyncio

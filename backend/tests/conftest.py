@@ -38,6 +38,7 @@ from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.email import EmailService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
 from site_api.services.testimonials import TestimonialService
@@ -493,6 +494,18 @@ class FakeStripeClient:
         self.v1 = FakeStripeV1()
 
 
+class FakeSesClient:
+    def __init__(self, should_raise: bool = False) -> None:
+        self.sent: list[dict] = []
+        self.should_raise = should_raise
+
+    def send_email(self, **kwargs: object) -> dict:
+        if self.should_raise:
+            raise RuntimeError("SES failure")
+        self.sent.append(kwargs)
+        return {"MessageId": "fake-message-id"}
+
+
 class FakeAnthropicTextBlock:
     def __init__(self, text: str) -> None:
         self.type = "text"
@@ -544,10 +557,21 @@ def repository() -> InMemoryContactRequestRepository:
 
 
 @pytest.fixture
+def fake_ses_client() -> FakeSesClient:
+    return FakeSesClient()
+
+
+@pytest.fixture
+def email_service(fake_ses_client: FakeSesClient) -> EmailService:
+    return EmailService(fake_ses_client, "sender@example.com", "admin@example.com")
+
+
+@pytest.fixture
 def contact_service(
     repository: InMemoryContactRequestRepository,
+    email_service: EmailService,
 ) -> ContactRequestService:
-    return ContactRequestService(repository)
+    return ContactRequestService(repository, email_service)
 
 
 @pytest.fixture
@@ -601,8 +625,9 @@ def appointment_repository() -> InMemoryAppointmentRepository:
 @pytest.fixture
 def scheduling_service(
     appointment_repository: InMemoryAppointmentRepository,
+    email_service: EmailService,
 ) -> SchedulingService:
-    return SchedulingService(appointment_repository)
+    return SchedulingService(appointment_repository, email_service)
 
 
 @pytest.fixture
@@ -661,6 +686,7 @@ def marketplace_service(
     order_repository: InMemoryOrderRepository,
     wishlist_repository: InMemoryWishlistRepository,
     fake_stripe_client: FakeStripeClient,
+    email_service: EmailService,
 ) -> MarketplaceService:
     return MarketplaceService(
         marketplace_item_repository,
@@ -671,6 +697,7 @@ def marketplace_service(
         "usd",
         "http://localhost:4200/marketplace/success?session_id={CHECKOUT_SESSION_ID}",
         "http://localhost:4200/cart",
+        email_service,
     )
 
 

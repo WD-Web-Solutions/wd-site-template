@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 import stripe
@@ -32,6 +32,7 @@ from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.email import EmailService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
 from site_api.services.testimonials import TestimonialService
@@ -83,11 +84,27 @@ async def get_session(
         ) from error
 
 
+def get_ses_client(request: Request) -> Any | None:
+    return request.app.state.ses_client
+
+
+def get_email_service(
+    ses_client: Annotated[Any | None, Depends(get_ses_client)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> EmailService:
+    return EmailService(
+        ses_client,
+        settings.email_sender_address,
+        settings.admin_notification_email,
+    )
+
+
 def get_contact_request_service(
     session: Annotated[AsyncSession, Depends(get_session)],
+    email_service: Annotated[EmailService, Depends(get_email_service)],
 ) -> ContactRequestService:
     repository = SqlAlchemyContactRequestRepository(session)
-    return ContactRequestService(repository)
+    return ContactRequestService(repository, email_service)
 
 
 def get_user_repository(
@@ -190,8 +207,9 @@ def get_appointment_repository(
 
 def get_scheduling_service(
     repository: Annotated[SqlAlchemyAppointmentRepository, Depends(get_appointment_repository)],
+    email_service: Annotated[EmailService, Depends(get_email_service)],
 ) -> SchedulingService:
-    return SchedulingService(repository)
+    return SchedulingService(repository, email_service)
 
 
 def get_file_storage(settings: Annotated[Settings, Depends(get_settings)]) -> LocalFileStorage:
@@ -255,10 +273,9 @@ def get_marketplace_service(
         SqlAlchemyMarketplaceItemRepository, Depends(get_marketplace_item_repository)
     ],
     order_repository: Annotated[SqlAlchemyOrderRepository, Depends(get_order_repository)],
-    wishlist_repository: Annotated[
-        SqlAlchemyWishlistRepository, Depends(get_wishlist_repository)
-    ],
+    wishlist_repository: Annotated[SqlAlchemyWishlistRepository, Depends(get_wishlist_repository)],
     stripe_client: Annotated[stripe.StripeClient | None, Depends(get_stripe_client)],
+    email_service: Annotated[EmailService, Depends(get_email_service)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> MarketplaceService:
     return MarketplaceService(
@@ -270,6 +287,7 @@ def get_marketplace_service(
         settings.marketplace_currency,
         f"{settings.public_site_url}/marketplace/success?session_id={{CHECKOUT_SESSION_ID}}",
         f"{settings.public_site_url}/cart",
+        email_service,
     )
 
 

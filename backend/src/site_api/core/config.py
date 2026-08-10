@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     marketplace_currency: str = "usd"
     marketplace_uploads_dir: str = "uploads/marketplace"
     public_site_url: str = "http://localhost:4200"
+    aws_ses_region: str = "us-east-1"
+    email_sender_address: str | None = None
+    admin_notification_email: str | None = None
 
     @model_validator(mode="after")
     def _require_real_jwt_secret_in_production(self) -> Settings:

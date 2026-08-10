@@ -11,8 +11,9 @@ from site_api.domain.scheduling import (
     SlotNotAvailableError,
     SlotNotFoundError,
 )
+from site_api.services.email import EmailService
 from site_api.services.scheduling import BookSlot, CreateSlot, SchedulingService
-from tests.conftest import InMemoryAppointmentRepository
+from tests.conftest import FakeSesClient, InMemoryAppointmentRepository
 
 ADMIN_ID = UUID("11111111-1111-1111-1111-111111111111")
 CLIENT_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -22,10 +23,14 @@ NOW = datetime(2026, 8, 9, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-def service(appointment_repository: InMemoryAppointmentRepository) -> SchedulingService:
+def service(
+    appointment_repository: InMemoryAppointmentRepository,
+    email_service: EmailService,
+) -> SchedulingService:
     ids = iter(UUID(int=n) for n in count(1))
     return SchedulingService(
         appointment_repository,
+        email_service,
         id_factory=lambda: next(ids),
         clock=lambda: NOW,
     )
@@ -190,3 +195,17 @@ async def test_list_my_appointments_returns_only_client_bookings(
 
     assert [appointment.id for appointment in mine] == [slot.id]
     assert someone_elses == []
+
+
+@pytest.mark.asyncio
+async def test_book_slot_sends_confirmation_and_admin_emails(
+    service: SchedulingService,
+    fake_ses_client: FakeSesClient,
+) -> None:
+    slot = await service.create_slot(_create_command())
+
+    await service.book_slot(_book_command(slot.id))
+
+    assert len(fake_ses_client.sent) == 2
+    recipients = {call["Destination"]["ToAddresses"][0] for call in fake_ses_client.sent}
+    assert recipients == {"taylor@example.com", "admin@example.com"}

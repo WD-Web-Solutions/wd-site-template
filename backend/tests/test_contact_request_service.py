@@ -9,7 +9,8 @@ from site_api.services.contact_requests import (
     ContactRequestService,
     SubmitContactRequest,
 )
-from tests.conftest import InMemoryContactRequestRepository
+from site_api.services.email import EmailService
+from tests.conftest import FakeSesClient, InMemoryContactRequestRepository
 
 
 @pytest.mark.asyncio
@@ -56,9 +57,12 @@ def _submit_command(**overrides: object) -> SubmitContactRequest:
 
 
 @pytest.fixture
-def service(repository: InMemoryContactRequestRepository) -> ContactRequestService:
+def service(
+    repository: InMemoryContactRequestRepository,
+    email_service: EmailService,
+) -> ContactRequestService:
     ids = iter(UUID(int=n) for n in count(1))
-    return ContactRequestService(repository, id_factory=lambda: next(ids))
+    return ContactRequestService(repository, email_service, id_factory=lambda: next(ids))
 
 
 @pytest.mark.asyncio
@@ -99,3 +103,14 @@ async def test_update_status_moves_lead_through_pipeline(
 async def test_update_status_raises_when_missing(service: ContactRequestService) -> None:
     with pytest.raises(ContactRequestNotFoundError):
         await service.update_status(UUID(int=999), ContactRequestStatus.LOST)
+
+
+@pytest.mark.asyncio
+async def test_submit_notifies_admin_by_email(
+    service: ContactRequestService,
+    fake_ses_client: FakeSesClient,
+) -> None:
+    await service.submit(_submit_command())
+
+    assert len(fake_ses_client.sent) == 1
+    assert fake_ses_client.sent[0]["Destination"] == {"ToAddresses": ["admin@example.com"]}

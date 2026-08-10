@@ -11,6 +11,7 @@ from site_api.domain.contacts import (
     ContactRequestRepository,
     ContactRequestStatus,
 )
+from site_api.services.email import EmailService
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,10 +28,12 @@ class ContactRequestService:
     def __init__(
         self,
         repository: ContactRequestRepository,
+        email_service: EmailService | None = None,
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._repository = repository
+        self._email = email_service or EmailService(None, None, None)
         self._id_factory = id_factory
         self._clock = clock
 
@@ -50,6 +53,7 @@ class ContactRequestService:
         )
         saved_request = await self._repository.add(contact_request)
         logger.bind(contact_request_id=str(saved_request.id)).info("Contact request received")
+        await self._email.notify_admin_new_lead(saved_request)
         return saved_request
 
     async def list_all(self, status: ContactRequestStatus | None = None) -> list[ContactRequest]:
