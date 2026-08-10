@@ -17,7 +17,7 @@ description:
 'Professional parking layouts designed for safety and visibility.',
 
 image:
-'/assets/images/gallery/striping.svg'
+'/assets/images/gallery/striping.jpg'
 
 },
 
@@ -35,7 +35,7 @@ description:
 'Commercial asphalt protection and restoration services.',
 
 image:
-'/assets/images/gallery/asphalt.svg'
+'/assets/images/gallery/asphalt.jpg'
 
 },
 
@@ -53,7 +53,7 @@ description:
 'Durable coating solutions designed for high traffic areas.',
 
 image:
-'/assets/images/gallery/coating.svg'
+'/assets/images/gallery/coating.jpg'
 
 },
 
@@ -71,7 +71,7 @@ description:
 'Restoring damaged surfaces for safer properties.',
 
 image:
-'/assets/images/gallery/repair.svg'
+'/assets/images/gallery/repair.jpg'
 
 },
 
@@ -89,7 +89,7 @@ description:
 'Wheel stops, markings, and property safety upgrades.',
 
 image:
-'/assets/images/gallery/safety.svg'
+'/assets/images/gallery/safety.jpg'
 
 },
 
@@ -107,7 +107,7 @@ description:
 'Complete surface improvement solutions.',
 
 image:
-'/assets/images/gallery/commercial.svg'
+'/assets/images/gallery/commercial.jpg'
 
 }
 

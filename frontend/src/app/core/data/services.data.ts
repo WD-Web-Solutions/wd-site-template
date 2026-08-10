@@ -21,7 +21,7 @@ export const SERVICES: Service[] = [
       'road',
 
     image:
-      '/assets/images/services/asphalt.svg'
+      '/assets/images/services/asphalt.jpg'
 
   },
 
@@ -43,7 +43,7 @@ export const SERVICES: Service[] = [
       'square-parking',
 
     image:
-      '/assets/images/services/striping.svg'
+      '/assets/images/services/striping.jpg'
 
   },
 
@@ -67,7 +67,7 @@ export const SERVICES: Service[] = [
       'trowel',
 
     image:
-      '/assets/images/services/concrete.svg'
+      '/assets/images/services/concrete.jpg'
 
   },
 
@@ -92,7 +92,7 @@ export const SERVICES: Service[] = [
       'shield-alt',
 
     image:
-      '/assets/images/services/coatings.svg'
+      '/assets/images/services/coatings.jpg'
 
   }
 

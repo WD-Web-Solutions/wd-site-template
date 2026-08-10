@@ -1,4 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80">
-  <rect width="320" height="80" rx="12" fill="#2563eb"/>
-  <text x="160" y="48" font-family="Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle">YOUR LOGO</text>
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="circleClip">
+      <circle cx="300" cy="300" r="260"/>
+    </clipPath>
+    <linearGradient id="badgeFill" x1="300" y1="40" x2="300" y2="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <path id="topArc" d="M 96,300 A 204,204 0 0 1 504,300"/>
+  </defs>
+
+  <!-- Badge circle -->
+  <circle cx="300" cy="300" r="280" fill="#111827"/>
+  <circle cx="300" cy="300" r="268" fill="url(#badgeFill)"/>
+  <circle cx="300" cy="300" r="268" fill="none" stroke="#f97316" stroke-width="4"/>
+
+  <!-- Curved wordmark along the top rim -->
+  <text font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="42" fill="#ffffff" letter-spacing="2">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">AUSTIN SURFACE PROS</textPath>
+  </text>
+
+  <!-- Asphalt surface with perspective striping -->
+  <g clip-path="url(#circleClip)">
+    <rect x="140" y="430" width="320" height="140" fill="#0f172a"/>
+    <polygon points="270,570 284,570 302,430 294,430" fill="#f97316"/>
+    <polygon points="318,570 332,570 308,430 300,430" fill="#f97316"/>
+  </g>
+
+  <!-- Striping roller icon -->
+  <g transform="translate(300,400)">
+    <rect x="-7" y="-32" width="14" height="38" rx="3" fill="#ffffff"/>
+    <rect x="-36" y="2" width="72" height="27" rx="8" fill="#ffffff"/>
+    <rect x="-36" y="11" width="72" height="8" fill="#f97316"/>
+  </g>
 </svg>
