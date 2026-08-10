@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from anthropic import AsyncAnthropic
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +11,7 @@ from site_api.api.dependencies import (
     get_admin_service,
     get_auth_service,
     get_blog_service,
+    get_chat_service,
     get_contact_request_service,
     get_file_storage,
     get_scheduling_service,
@@ -19,6 +21,7 @@ from site_api.api.routes import (
     auth,
     blog,
     blog_admin,
+    chat,
     contact_requests,
     health,
     scheduling,
@@ -31,6 +34,7 @@ from site_api.domain.storage import FileStorage
 from site_api.services.admin import AdminService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
+from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.scheduling import SchedulingService
 
@@ -40,6 +44,7 @@ AdminServiceProvider = Callable[[], AdminService]
 BlogServiceProvider = Callable[[], BlogService]
 FileStorageProvider = Callable[[], FileStorage]
 SchedulingServiceProvider = Callable[[], SchedulingService]
+ChatServiceProvider = Callable[[], ChatService]
 
 
 def create_app(
@@ -50,6 +55,7 @@ def create_app(
     blog_service_provider: BlogServiceProvider | None = None,
     file_storage_provider: FileStorageProvider | None = None,
     scheduling_service_provider: SchedulingServiceProvider | None = None,
+    chat_service_provider: ChatServiceProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     configure_logging(resolved_settings.log_level)
@@ -67,6 +73,11 @@ def create_app(
     )
     application.state.database = database
     application.state.settings = resolved_settings
+    application.state.anthropic_client = (
+        AsyncAnthropic(api_key=resolved_settings.anthropic_api_key)
+        if resolved_settings.anthropic_api_key
+        else None
+    )
 
     if resolved_settings.cors_origins:
         application.add_middleware(
@@ -91,6 +102,7 @@ def create_app(
     application.include_router(blog_admin.router, prefix=resolved_settings.api_prefix)
     application.include_router(scheduling.router, prefix=resolved_settings.api_prefix)
     application.include_router(scheduling_admin.router, prefix=resolved_settings.api_prefix)
+    application.include_router(chat.router, prefix=resolved_settings.api_prefix)
 
     if contact_service_provider is not None:
         application.dependency_overrides[get_contact_request_service] = contact_service_provider
@@ -109,6 +121,9 @@ def create_app(
 
     if scheduling_service_provider is not None:
         application.dependency_overrides[get_scheduling_service] = scheduling_service_provider
+
+    if chat_service_provider is not None:
+        application.dependency_overrides[get_chat_service] = chat_service_provider
 
     return application
 

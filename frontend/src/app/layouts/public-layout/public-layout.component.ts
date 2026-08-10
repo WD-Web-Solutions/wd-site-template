@@ -6,6 +6,8 @@ import { NavbarComponent } from './navbar/navbar.component';
 
 import { FooterComponent } from './footer/footer.component';
 
+import { ChatWidgetComponent } from '../../shared/components/chat-widget/chat-widget.component';
+
 
 @Component({
 
@@ -19,7 +21,9 @@ import { FooterComponent } from './footer/footer.component';
 
     NavbarComponent,
 
-    FooterComponent
+    FooterComponent,
+
+    ChatWidgetComponent
 
   ],
 

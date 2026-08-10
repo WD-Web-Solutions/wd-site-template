@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
+from anthropic import AsyncAnthropic
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,7 @@ from site_api.domain.users import AuthenticatedUser, UserRole
 from site_api.services.admin import AdminService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
+from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.scheduling import SchedulingService
 
@@ -189,4 +191,22 @@ def get_file_storage(settings: Annotated[Settings, Depends(get_settings)]) -> Lo
     return LocalFileStorage(
         base_dir=Path(settings.blog_uploads_dir),
         base_url=f"{settings.api_prefix}/uploads/blog",
+    )
+
+
+def get_anthropic_client(request: Request) -> AsyncAnthropic | None:
+    return request.app.state.anthropic_client
+
+
+def get_chat_service(
+    client: Annotated[AsyncAnthropic | None, Depends(get_anthropic_client)],
+    blog_repository: Annotated[SqlAlchemyBlogPostRepository, Depends(get_blog_post_repository)],
+    appointment_repository: Annotated[
+        SqlAlchemyAppointmentRepository, Depends(get_appointment_repository)
+    ],
+    user_repository: Annotated[SqlAlchemyUserRepository, Depends(get_user_repository)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ChatService:
+    return ChatService(
+        client, blog_repository, appointment_repository, user_repository, settings.chat_model
     )

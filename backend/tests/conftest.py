@@ -23,6 +23,7 @@ from site_api.main import create_app
 from site_api.services.admin import AdminService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
+from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.scheduling import SchedulingService
 
@@ -246,6 +247,32 @@ class InMemoryAppointmentRepository:
         return sorted(results, key=lambda appointment: appointment.starts_at, reverse=True)
 
 
+class FakeAnthropicTextBlock:
+    def __init__(self, text: str) -> None:
+        self.type = "text"
+        self.text = text
+
+
+class FakeAnthropicMessage:
+    def __init__(self, text: str) -> None:
+        self.content = [FakeAnthropicTextBlock(text)]
+
+
+class FakeAnthropicMessages:
+    def __init__(self, reply: str) -> None:
+        self.reply = reply
+        self.last_kwargs: dict[str, object] | None = None
+
+    async def create(self, **kwargs: object) -> FakeAnthropicMessage:
+        self.last_kwargs = kwargs
+        return FakeAnthropicMessage(self.reply)
+
+
+class FakeAnthropicClient:
+    def __init__(self, reply: str = "Hello! How can I help?") -> None:
+        self.messages = FakeAnthropicMessages(reply)
+
+
 class FakeFileStorage:
     def __init__(self) -> None:
         self.saved: list[tuple[bytes, str]] = []
@@ -342,6 +369,27 @@ def blog_service(
 
 
 @pytest.fixture
+def fake_anthropic_client() -> FakeAnthropicClient:
+    return FakeAnthropicClient()
+
+
+@pytest.fixture
+def chat_service(
+    fake_anthropic_client: FakeAnthropicClient,
+    blog_post_repository: InMemoryBlogPostRepository,
+    appointment_repository: InMemoryAppointmentRepository,
+    user_repository: InMemoryUserRepository,
+) -> ChatService:
+    return ChatService(
+        fake_anthropic_client,  # type: ignore[arg-type]
+        blog_post_repository,
+        appointment_repository,
+        user_repository,
+        "claude-opus-5",
+    )
+
+
+@pytest.fixture
 def app(
     contact_service: ContactRequestService,
     auth_service: AuthService,
@@ -349,6 +397,7 @@ def app(
     blog_service: BlogService,
     file_storage: FakeFileStorage,
     scheduling_service: SchedulingService,
+    chat_service: ChatService,
 ) -> FastAPI:
     settings = Settings(environment="test", cors_origins=[], database_url=None)
     return create_app(
@@ -359,6 +408,7 @@ def app(
         blog_service_provider=lambda: blog_service,
         file_storage_provider=lambda: file_storage,
         scheduling_service_provider=lambda: scheduling_service,
+        chat_service_provider=lambda: chat_service,
     )
 
 

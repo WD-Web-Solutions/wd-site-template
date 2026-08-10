@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expires_minutes: int = 60
     blog_uploads_dir: str = "uploads/blog"
+    anthropic_api_key: str | None = None
+    chat_model: str = "claude-opus-5"
 
     @model_validator(mode="after")
     def _require_real_jwt_secret_in_production(self) -> Settings:
