@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -7,6 +7,13 @@ import stripe
 from loguru import logger
 
 from site_api.core.slugify import slugify
+from site_api.domain.discount_codes import (
+    DiscountCode,
+    DiscountCodeInvalidError,
+    DiscountCodeNotFoundError,
+    DiscountCodeRepository,
+    DiscountType,
+)
 from site_api.domain.marketplace import (
     EmptyCartError,
     InvalidWebhookSignatureError,
@@ -27,6 +34,7 @@ from site_api.domain.marketplace import (
 from site_api.services.email import EmailService
 
 MAX_LINE_QUANTITY = 20
+MAX_PERCENT_VALUE = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +65,7 @@ class CreateCheckoutSession:
     lines: list[CartLine]
     customer_id: UUID | None
     customer_email: str | None
+    discount_code: str | None = None
 
 
 class MarketplaceService:
@@ -71,6 +80,7 @@ class MarketplaceService:
         success_url_template: str,
         cancel_url: str,
         email_service: EmailService | None = None,
+        discount_code_repository: DiscountCodeRepository | None = None,
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
@@ -83,6 +93,7 @@ class MarketplaceService:
         self._success_url_template = success_url_template
         self._cancel_url = cancel_url
         self._email = email_service or EmailService(None, None, None)
+        self._discount_codes = discount_code_repository
         self._id_factory = id_factory
         self._clock = clock
 
@@ -220,15 +231,31 @@ class MarketplaceService:
                 )
             )
 
-        session = await self._stripe.v1.checkout.sessions.create_async(
-            {
-                "mode": "payment",
-                "line_items": stripe_line_items,
-                "success_url": self._success_url_template,
-                "cancel_url": self._cancel_url,
-                **({"customer_email": command.customer_email} if command.customer_email else {}),
-            }
-        )
+        applied_code = None
+        discount_cents = 0
+        session_params: dict[str, object] = {
+            "mode": "payment",
+            "line_items": stripe_line_items,
+            "success_url": self._success_url_template,
+            "cancel_url": self._cancel_url,
+            **({"customer_email": command.customer_email} if command.customer_email else {}),
+        }
+
+        if command.discount_code:
+            applied_code, discount_cents = await self._apply_discount_code(
+                command.discount_code, total_cents
+            )
+            if discount_cents > 0:
+                coupon_params: dict[str, object] = {"duration": "once"}
+                if applied_code.discount_type is DiscountType.PERCENT:
+                    coupon_params["percent_off"] = float(applied_code.value)
+                else:
+                    coupon_params["amount_off"] = discount_cents
+                    coupon_params["currency"] = self._currency
+                coupon = await self._stripe.v1.coupons.create_async(coupon_params)
+                session_params["discounts"] = [{"coupon": coupon.id}]
+
+        session = await self._stripe.v1.checkout.sessions.create_async(session_params)
 
         order = Order(
             id=order_id,
@@ -237,7 +264,9 @@ class MarketplaceService:
             customer_id=command.customer_id,
             customer_email=command.customer_email,
             status=OrderStatus.OPEN,
-            total_cents=total_cents,
+            total_cents=total_cents - discount_cents,
+            discount_code=applied_code.code if applied_code else None,
+            discount_cents=discount_cents,
             created_at=now,
             updated_at=now,
         )
@@ -270,6 +299,8 @@ class MarketplaceService:
                 items = await self._orders.list_items_for_order(paid_order.id)
                 await self._email.send_order_confirmation(paid_order, items)
                 await self._email.notify_admin_new_order(paid_order, items)
+                if paid_order.discount_code is not None:
+                    await self._record_discount_redemption(paid_order.discount_code)
         elif event_type == "checkout.session.expired":
             await self._apply_status(session_obj["id"], OrderStatus.EXPIRED)
         elif event_type == "checkout.session.async_payment_failed":
@@ -299,6 +330,50 @@ class MarketplaceService:
         )
         logger.bind(order_id=str(order.id), status=status.value).info("Order status updated")
         return updated
+
+    async def _apply_discount_code(
+        self, code: str, subtotal_cents: int
+    ) -> tuple[DiscountCode, int]:
+        if self._discount_codes is None:
+            raise DiscountCodeNotFoundError
+
+        discount_code = await self._discount_codes.get_by_code(code.strip().upper())
+        if discount_code is None:
+            raise DiscountCodeNotFoundError
+
+        if not discount_code.is_active:
+            raise DiscountCodeInvalidError
+        if discount_code.expires_at is not None and discount_code.expires_at <= self._clock():
+            raise DiscountCodeInvalidError
+        if (
+            discount_code.max_redemptions is not None
+            and discount_code.redemption_count >= discount_code.max_redemptions
+        ):
+            raise DiscountCodeInvalidError
+
+        if discount_code.discount_type is DiscountType.PERCENT:
+            discount_cents = round(subtotal_cents * discount_code.value / 100)
+        else:
+            discount_cents = min(discount_code.value, subtotal_cents)
+
+        return discount_code, discount_cents
+
+    async def _record_discount_redemption(self, code: str) -> None:
+        if self._discount_codes is None:
+            return
+
+        discount_code = await self._discount_codes.get_by_code(code)
+        if discount_code is None:
+            return
+
+        await self._discount_codes.update(
+            replace(
+                discount_code,
+                redemption_count=discount_code.redemption_count + 1,
+                updated_at=self._clock(),
+            )
+        )
+        logger.bind(code=code).info("Discount code redemption recorded")
 
     # --- Orders --------------------------------------------------------------
 

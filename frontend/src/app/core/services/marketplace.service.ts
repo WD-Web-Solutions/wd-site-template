@@ -28,8 +28,11 @@ export class MarketplaceService {
     return this.http.get<ItemSummary>(`/api/marketplace/items/${slug}`);
   }
 
-  checkout(lines: CheckoutLine[]): Observable<CheckoutResponse> {
-    return this.http.post<CheckoutResponse>('/api/marketplace/checkout', { items: lines });
+  checkout(lines: CheckoutLine[], discountCode?: string): Observable<CheckoutResponse> {
+    return this.http.post<CheckoutResponse>('/api/marketplace/checkout', {
+      items: lines,
+      discountCode: discountCode || null
+    });
   }
 
   listMyOrders(): Observable<OrderSummary[]> {

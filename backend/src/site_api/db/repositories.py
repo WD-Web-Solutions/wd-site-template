@@ -10,6 +10,7 @@ from site_api.db.models import (
     BlogPostRecord,
     CommentRecord,
     ContactRequestRecord,
+    DiscountCodeRecord,
     LeadNoteRecord,
     MarketplaceItemRecord,
     OrderItemRecord,
@@ -33,6 +34,7 @@ from site_api.domain.contacts import (
     ContactRequestNotFoundError,
     ContactRequestStatus,
 )
+from site_api.domain.discount_codes import DiscountCode, DiscountCodeNotFoundError, DiscountType
 from site_api.domain.lead_notes import LeadNote
 from site_api.domain.marketplace import (
     ItemNotFoundError,
@@ -662,6 +664,8 @@ def _to_domain_order(record: OrderRecord) -> Order:
         customer_email=record.customer_email,
         status=OrderStatus(record.status),
         total_cents=record.total_cents,
+        discount_code=record.discount_code,
+        discount_cents=record.discount_cents,
         created_at=record.created_at,
         updated_at=record.updated_at,
     )
@@ -693,6 +697,8 @@ class SqlAlchemyOrderRepository:
                 customer_email=order.customer_email,
                 status=order.status.value,
                 total_cents=order.total_cents,
+                discount_code=order.discount_code,
+                discount_cents=order.discount_cents,
                 created_at=order.created_at,
                 updated_at=order.updated_at,
             )
@@ -910,3 +916,79 @@ class SqlAlchemyTestimonialRepository:
             query = query.where(TestimonialRecord.status == status.value)
         result = await self._session.execute(query)
         return [_to_domain_testimonial(record) for record in result.scalars().all()]
+
+
+def _to_domain_discount_code(record: DiscountCodeRecord) -> DiscountCode:
+    return DiscountCode(
+        id=record.id,
+        code=record.code,
+        discount_type=DiscountType(record.discount_type),
+        value=record.value,
+        is_active=record.is_active,
+        expires_at=record.expires_at,
+        max_redemptions=record.max_redemptions,
+        redemption_count=record.redemption_count,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+class SqlAlchemyDiscountCodeRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, discount_code: DiscountCode) -> DiscountCode:
+        self._session.add(
+            DiscountCodeRecord(
+                id=discount_code.id,
+                code=discount_code.code,
+                discount_type=discount_code.discount_type.value,
+                value=discount_code.value,
+                is_active=discount_code.is_active,
+                expires_at=discount_code.expires_at,
+                max_redemptions=discount_code.max_redemptions,
+                redemption_count=discount_code.redemption_count,
+                created_at=discount_code.created_at,
+                updated_at=discount_code.updated_at,
+            )
+        )
+        await self._session.flush()
+        return discount_code
+
+    async def update(self, discount_code: DiscountCode) -> DiscountCode:
+        record = await self._session.get(DiscountCodeRecord, discount_code.id)
+        if record is None:
+            raise DiscountCodeNotFoundError
+        record.discount_type = discount_code.discount_type.value
+        record.value = discount_code.value
+        record.is_active = discount_code.is_active
+        record.expires_at = discount_code.expires_at
+        record.max_redemptions = discount_code.max_redemptions
+        record.redemption_count = discount_code.redemption_count
+        record.updated_at = discount_code.updated_at
+        await self._session.flush()
+        return _to_domain_discount_code(record)
+
+    async def delete(self, discount_code_id: UUID) -> None:
+        record = await self._session.get(DiscountCodeRecord, discount_code_id)
+        if record is None:
+            raise DiscountCodeNotFoundError
+        await self._session.delete(record)
+        await self._session.flush()
+
+    async def get_by_id(self, discount_code_id: UUID) -> DiscountCode | None:
+        record = await self._session.get(DiscountCodeRecord, discount_code_id)
+        return None if record is None else _to_domain_discount_code(record)
+
+    async def get_by_code(self, code: str) -> DiscountCode | None:
+        result = await self._session.execute(
+            select(DiscountCodeRecord).where(DiscountCodeRecord.code == code)
+        )
+        record = result.scalar_one_or_none()
+        return None if record is None else _to_domain_discount_code(record)
+
+    async def list_all(self) -> list[DiscountCode]:
+        result = await self._session.execute(
+            select(DiscountCodeRecord).order_by(DiscountCodeRecord.created_at.desc())
+        )
+        return [_to_domain_discount_code(record) for record in result.scalars().all()]

@@ -82,6 +82,8 @@ def _make_order(days_ago: float, **overrides: object) -> Order:
         "customer_email": "guest@example.com",
         "status": OrderStatus.PAID,
         "total_cents": 5000,
+        "discount_code": None,
+        "discount_cents": 0,
         "created_at": created_at,
         "updated_at": created_at,
     }

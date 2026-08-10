@@ -199,6 +199,8 @@ class OrderRecord(Base):
     customer_email: Mapped[str | None] = mapped_column(String(254))
     status: Mapped[str] = mapped_column(String(20), default="open")
     total_cents: Mapped[int] = mapped_column(Integer)
+    discount_code: Mapped[str | None] = mapped_column(String(40))
+    discount_cents: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -260,6 +262,27 @@ class WishlistItemRecord(Base):
         PostgresUUID(as_uuid=True), ForeignKey("marketplace_items.id"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+
+class DiscountCodeRecord(Base):
+    __tablename__ = "discount_codes"
+
+    id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
+    code: Mapped[str] = mapped_column(String(40), unique=True)
+    discount_type: Mapped[str] = mapped_column(String(10))
+    value: Mapped[int] = mapped_column(Integer)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    max_redemptions: Mapped[int | None] = mapped_column(Integer)
+    redemption_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
     )

@@ -21,6 +21,7 @@ from site_api.domain.contacts import (
     ContactRequestNotFoundError,
     ContactRequestStatus,
 )
+from site_api.domain.discount_codes import DiscountCode, DiscountCodeNotFoundError
 from site_api.domain.lead_notes import LeadNote
 from site_api.domain.marketplace import (
     ItemNotFoundError,
@@ -40,6 +41,7 @@ from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.dashboard import DashboardService
+from site_api.services.discount_codes import DiscountCodeService
 from site_api.services.email import EmailService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
@@ -475,6 +477,44 @@ class InMemoryTestimonialRepository:
         return sorted(results, key=lambda testimonial: testimonial.created_at, reverse=True)
 
 
+class InMemoryDiscountCodeRepository:
+    def __init__(self) -> None:
+        self.discount_codes: list[DiscountCode] = []
+
+    async def add(self, discount_code: DiscountCode) -> DiscountCode:
+        self.discount_codes.append(discount_code)
+        return discount_code
+
+    async def update(self, discount_code: DiscountCode) -> DiscountCode:
+        for index, existing in enumerate(self.discount_codes):
+            if existing.id == discount_code.id:
+                self.discount_codes[index] = discount_code
+                return discount_code
+        raise DiscountCodeNotFoundError
+
+    async def delete(self, discount_code_id: UUID) -> None:
+        for index, discount_code in enumerate(self.discount_codes):
+            if discount_code.id == discount_code_id:
+                del self.discount_codes[index]
+                return
+        raise DiscountCodeNotFoundError
+
+    async def get_by_id(self, discount_code_id: UUID) -> DiscountCode | None:
+        for discount_code in self.discount_codes:
+            if discount_code.id == discount_code_id:
+                return discount_code
+        return None
+
+    async def get_by_code(self, code: str) -> DiscountCode | None:
+        for discount_code in self.discount_codes:
+            if discount_code.code == code:
+                return discount_code
+        return None
+
+    async def list_all(self) -> list[DiscountCode]:
+        return sorted(self.discount_codes, key=lambda code: code.created_at, reverse=True)
+
+
 class FakeStripeCheckoutSession:
     def __init__(self, session_id: str, url: str) -> None:
         self.id = session_id
@@ -499,9 +539,25 @@ class FakeStripeCheckout:
         self.sessions = FakeStripeCheckoutSessions()
 
 
+class FakeStripeCoupon:
+    def __init__(self, coupon_id: str) -> None:
+        self.id = coupon_id
+
+
+class FakeStripeCoupons:
+    def __init__(self) -> None:
+        self.created_params: list[dict] = []
+        self.next_coupon_id = "coupon_test_1"
+
+    async def create_async(self, params: dict) -> FakeStripeCoupon:
+        self.created_params.append(params)
+        return FakeStripeCoupon(self.next_coupon_id)
+
+
 class FakeStripeV1:
     def __init__(self) -> None:
         self.checkout = FakeStripeCheckout()
+        self.coupons = FakeStripeCoupons()
 
 
 class FakeStripeClient:
@@ -702,12 +758,25 @@ def fake_stripe_client() -> FakeStripeClient:
 
 
 @pytest.fixture
+def discount_code_repository() -> InMemoryDiscountCodeRepository:
+    return InMemoryDiscountCodeRepository()
+
+
+@pytest.fixture
+def discount_code_service(
+    discount_code_repository: InMemoryDiscountCodeRepository,
+) -> DiscountCodeService:
+    return DiscountCodeService(discount_code_repository)
+
+
+@pytest.fixture
 def marketplace_service(
     marketplace_item_repository: InMemoryMarketplaceItemRepository,
     order_repository: InMemoryOrderRepository,
     wishlist_repository: InMemoryWishlistRepository,
     fake_stripe_client: FakeStripeClient,
     email_service: EmailService,
+    discount_code_repository: InMemoryDiscountCodeRepository,
 ) -> MarketplaceService:
     return MarketplaceService(
         marketplace_item_repository,
@@ -719,6 +788,7 @@ def marketplace_service(
         "http://localhost:4200/marketplace/success?session_id={CHECKOUT_SESSION_ID}",
         "http://localhost:4200/cart",
         email_service,
+        discount_code_repository,
     )
 
 
@@ -761,6 +831,7 @@ def app(
     marketplace_service: MarketplaceService,
     testimonial_service: TestimonialService,
     dashboard_service: DashboardService,
+    discount_code_service: DiscountCodeService,
 ) -> FastAPI:
     settings = Settings(environment="test", cors_origins=[], database_url=None)
     return create_app(
@@ -775,6 +846,7 @@ def app(
         marketplace_service_provider=lambda: marketplace_service,
         testimonial_service_provider=lambda: testimonial_service,
         dashboard_service_provider=lambda: dashboard_service,
+        discount_code_service_provider=lambda: discount_code_service,
     )
 
 

@@ -46,6 +46,8 @@ class Order:
     customer_email: str | None
     status: OrderStatus
     total_cents: int
+    discount_code: str | None
+    discount_cents: int
     created_at: datetime
     updated_at: datetime
 

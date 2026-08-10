@@ -290,6 +290,18 @@ export const routes: Routes = [
 
 
       {
+        path: 'admin/discount-codes',
+
+        canActivate: [adminGuard],
+
+        loadComponent: () =>
+          import('./pages/admin-discount-codes/admin-discount-codes.component')
+            .then(m => m.AdminDiscountCodesComponent)
+
+      },
+
+
+      {
         path: 'account',
 
         loadComponent: () =>

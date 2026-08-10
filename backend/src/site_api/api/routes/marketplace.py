@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-from site_api.api.dependencies import get_current_user, get_marketplace_service, get_optional_current_user
+from site_api.api.dependencies import (
+    get_current_user,
+    get_marketplace_service,
+    get_optional_current_user,
+)
+from site_api.domain.discount_codes import DiscountCodeInvalidError, DiscountCodeNotFoundError
 from site_api.domain.marketplace import (
     EmptyCartError,
     InvalidWebhookSignatureError,
@@ -46,6 +51,7 @@ class CheckoutRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     items: list[CheckoutLineRequest] = Field(min_length=1, max_length=50)
+    discount_code: str | None = Field(default=None, max_length=40)
 
 
 class CheckoutResponse(BaseModel):
@@ -69,6 +75,8 @@ class OrderSummary(BaseModel):
     id: UUID
     status: str
     total_cents: int
+    discount_code: str | None
+    discount_cents: int
     created_at: datetime
     items: list[OrderItemSummary]
 
@@ -103,6 +111,8 @@ def to_order_summary(order: Order, items: list[OrderItem]) -> OrderSummary:
         id=order.id,
         status=order.status.value,
         total_cents=order.total_cents,
+        discount_code=order.discount_code,
+        discount_cents=order.discount_cents,
         created_at=order.created_at,
         items=[
             OrderItemSummary(
@@ -154,11 +164,11 @@ async def create_checkout_session(
         _, checkout_url = await service.create_checkout_session(
             CreateCheckoutSession(
                 lines=[
-                    CartLine(item_id=line.item_id, quantity=line.quantity)
-                    for line in payload.items
+                    CartLine(item_id=line.item_id, quantity=line.quantity) for line in payload.items
                 ],
                 customer_id=current_user.id if current_user else None,
                 customer_email=current_user.email_address if current_user else None,
+                discount_code=payload.discount_code,
             )
         )
     except MarketplaceNotConfiguredError as error:
@@ -180,6 +190,11 @@ async def create_checkout_session(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="One of the items in your cart is no longer available",
+        ) from error
+    except (DiscountCodeNotFoundError, DiscountCodeInvalidError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That discount code is invalid or expired.",
         ) from error
 
     return CheckoutResponse(checkout_url=checkout_url)

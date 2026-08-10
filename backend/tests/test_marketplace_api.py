@@ -2,13 +2,15 @@ import hashlib
 import hmac
 import json
 import time
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 
+from site_api.domain.discount_codes import DiscountCode, DiscountType
 from site_api.domain.marketplace import MarketplaceItem
-from tests.conftest import InMemoryMarketplaceItemRepository
+from tests.conftest import InMemoryDiscountCodeRepository, InMemoryMarketplaceItemRepository
 
 WEBHOOK_SECRET = "whsec_test_secret"
 
@@ -147,6 +149,82 @@ def test_checkout_rejects_inactive_item(
     )
 
     assert response.status_code == 409
+
+
+def _make_discount_code(**overrides: object) -> DiscountCode:
+    now = datetime.now(UTC)
+    defaults: dict[str, object] = {
+        "id": UUID(int=500),
+        "code": "SAVE10",
+        "discount_type": DiscountType.PERCENT,
+        "value": 10,
+        "is_active": True,
+        "expires_at": None,
+        "max_redemptions": None,
+        "redemption_count": 0,
+        "created_at": now,
+        "updated_at": now,
+    }
+    defaults.update(overrides)
+    return DiscountCode(**defaults)
+
+
+def test_checkout_with_valid_discount_code_succeeds(
+    client: TestClient,
+    marketplace_item_repository: InMemoryMarketplaceItemRepository,
+    discount_code_repository: InMemoryDiscountCodeRepository,
+) -> None:
+    marketplace_item_repository.items.append(_make_item())
+    discount_code_repository.discount_codes.append(_make_discount_code())
+
+    response = client.post(
+        "/api/marketplace/checkout",
+        json={
+            "items": [{"itemId": str(UUID(int=1)), "quantity": 1}],
+            "discountCode": "save10",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["checkoutUrl"].startswith("https://checkout.stripe.com/")
+
+
+def test_checkout_rejects_unknown_discount_code(
+    client: TestClient,
+    marketplace_item_repository: InMemoryMarketplaceItemRepository,
+) -> None:
+    marketplace_item_repository.items.append(_make_item())
+
+    response = client.post(
+        "/api/marketplace/checkout",
+        json={
+            "items": [{"itemId": str(UUID(int=1)), "quantity": 1}],
+            "discountCode": "MISSING",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_checkout_rejects_expired_discount_code(
+    client: TestClient,
+    marketplace_item_repository: InMemoryMarketplaceItemRepository,
+    discount_code_repository: InMemoryDiscountCodeRepository,
+) -> None:
+    marketplace_item_repository.items.append(_make_item())
+    discount_code_repository.discount_codes.append(
+        _make_discount_code(expires_at=datetime.now(UTC) - timedelta(days=1))
+    )
+
+    response = client.post(
+        "/api/marketplace/checkout",
+        json={
+            "items": [{"itemId": str(UUID(int=1)), "quantity": 1}],
+            "discountCode": "SAVE10",
+        },
+    )
+
+    assert response.status_code == 400
 
 
 def test_webhook_requires_signature_header(client: TestClient) -> None:

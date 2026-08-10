@@ -26,6 +26,7 @@ export class CartComponent {
 
   readonly isCheckingOut = signal(false);
   readonly errorMessage = signal('');
+  readonly discountCode = signal('');
 
   constructor() {
     this.seoService.updatePage(
@@ -53,18 +54,20 @@ export class CartComponent {
     const lines = this.lines().map(line => ({ itemId: line.itemId, quantity: line.quantity }));
 
     this.marketplaceService
-      .checkout(lines)
+      .checkout(lines, this.discountCode().trim())
       .pipe(finalize(() => this.isCheckingOut.set(false)))
       .subscribe({
         next: response => {
           window.location.href = response.checkoutUrl;
         },
         error: error => {
-          this.errorMessage.set(
-            error.status === 503
-              ? 'Checkout is not available yet. Please check back soon.'
-              : 'Unable to start checkout. Please try again.'
-          );
+          if (error.status === 400) {
+            this.errorMessage.set('That discount code is invalid or expired.');
+          } else if (error.status === 503) {
+            this.errorMessage.set('Checkout is not available yet. Please check back soon.');
+          } else {
+            this.errorMessage.set('Unable to start checkout. Please try again.');
+          }
         }
       });
   }

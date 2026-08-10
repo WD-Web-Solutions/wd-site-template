@@ -57,6 +57,8 @@ def _make_order(**overrides: object) -> Order:
         "customer_email": "guest@example.com",
         "status": OrderStatus.PAID,
         "total_cents": 5000,
+        "discount_code": None,
+        "discount_cents": 0,
         "created_at": NOW,
         "updated_at": NOW,
     }

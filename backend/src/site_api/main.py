@@ -16,6 +16,7 @@ from site_api.api.dependencies import (
     get_chat_service,
     get_contact_request_service,
     get_dashboard_service,
+    get_discount_code_service,
     get_email_service,
     get_file_storage,
     get_marketplace_service,
@@ -31,6 +32,7 @@ from site_api.api.routes import (
     contact_requests,
     contact_requests_admin,
     dashboard_admin,
+    discount_codes_admin,
     health,
     marketplace,
     marketplace_admin,
@@ -49,6 +51,7 @@ from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.dashboard import DashboardService
+from site_api.services.discount_codes import DiscountCodeService
 from site_api.services.email import EmailService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
@@ -65,6 +68,7 @@ MarketplaceServiceProvider = Callable[[], MarketplaceService]
 TestimonialServiceProvider = Callable[[], TestimonialService]
 EmailServiceProvider = Callable[[], EmailService]
 DashboardServiceProvider = Callable[[], DashboardService]
+DiscountCodeServiceProvider = Callable[[], DiscountCodeService]
 
 
 def create_app(
@@ -80,6 +84,7 @@ def create_app(
     testimonial_service_provider: TestimonialServiceProvider | None = None,
     email_service_provider: EmailServiceProvider | None = None,
     dashboard_service_provider: DashboardServiceProvider | None = None,
+    discount_code_service_provider: DiscountCodeServiceProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     configure_logging(resolved_settings.log_level)
@@ -150,6 +155,7 @@ def create_app(
     application.include_router(testimonials.router, prefix=resolved_settings.api_prefix)
     application.include_router(testimonials_admin.router, prefix=resolved_settings.api_prefix)
     application.include_router(dashboard_admin.router, prefix=resolved_settings.api_prefix)
+    application.include_router(discount_codes_admin.router, prefix=resolved_settings.api_prefix)
 
     if contact_service_provider is not None:
         application.dependency_overrides[get_contact_request_service] = contact_service_provider
@@ -183,6 +189,9 @@ def create_app(
 
     if dashboard_service_provider is not None:
         application.dependency_overrides[get_dashboard_service] = dashboard_service_provider
+
+    if discount_code_service_provider is not None:
+        application.dependency_overrides[get_discount_code_service] = discount_code_service_provider
 
     return application
 

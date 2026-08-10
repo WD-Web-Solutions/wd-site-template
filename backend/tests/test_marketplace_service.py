@@ -2,12 +2,18 @@ import hashlib
 import hmac
 import json
 import time
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from itertools import count
 from uuid import UUID
 
 import pytest
 
+from site_api.domain.discount_codes import (
+    DiscountCodeInvalidError,
+    DiscountCodeNotFoundError,
+    DiscountType,
+)
 from site_api.domain.marketplace import (
     EmptyCartError,
     InvalidWebhookSignatureError,
@@ -18,6 +24,7 @@ from site_api.domain.marketplace import (
     OrderNotFoundError,
     OrderStatus,
 )
+from site_api.services.discount_codes import CreateDiscountCode, DiscountCodeService
 from site_api.services.email import EmailService
 from site_api.services.marketplace import (
     CartLine,
@@ -29,6 +36,7 @@ from site_api.services.marketplace import (
 from tests.conftest import (
     FakeSesClient,
     FakeStripeClient,
+    InMemoryDiscountCodeRepository,
     InMemoryMarketplaceItemRepository,
     InMemoryOrderRepository,
     InMemoryWishlistRepository,
@@ -49,6 +57,7 @@ def service(
     wishlist_repository: InMemoryWishlistRepository,
     fake_stripe_client: FakeStripeClient,
     email_service: EmailService,
+    discount_code_repository: InMemoryDiscountCodeRepository,
 ) -> MarketplaceService:
     ids = iter(UUID(int=n) for n in count(1))
     return MarketplaceService(
@@ -61,9 +70,17 @@ def service(
         "http://localhost:4200/marketplace/success?session_id={CHECKOUT_SESSION_ID}",
         "http://localhost:4200/cart",
         email_service,
+        discount_code_repository,
         id_factory=lambda: next(ids),
         clock=lambda: NOW,
     )
+
+
+@pytest.fixture
+def discount_service(
+    discount_code_repository: InMemoryDiscountCodeRepository,
+) -> DiscountCodeService:
+    return DiscountCodeService(discount_code_repository, clock=lambda: NOW)
 
 
 def _create_command(**overrides: object) -> CreateItem:
@@ -526,3 +543,233 @@ async def test_wishlist_remove(service: MarketplaceService) -> None:
     await service.remove_from_wishlist(CUSTOMER_ID, item.id)
 
     assert await service.list_wishlist(CUSTOMER_ID) == []
+
+
+@pytest.mark.asyncio
+async def test_checkout_applies_percent_discount(
+    service: MarketplaceService,
+    discount_service: DiscountCodeService,
+    fake_stripe_client: FakeStripeClient,
+) -> None:
+    item = await service.create_item(_create_command(price_cents=10000))
+    await discount_service.create_code(
+        CreateDiscountCode(
+            code="SAVE10",
+            discount_type=DiscountType.PERCENT,
+            value=10,
+            expires_at=None,
+            max_redemptions=None,
+        )
+    )
+
+    order, _ = await service.create_checkout_session(
+        CreateCheckoutSession(
+            lines=[CartLine(item_id=item.id, quantity=1)],
+            customer_id=None,
+            customer_email=None,
+            discount_code="save10",
+        )
+    )
+
+    assert order.discount_code == "SAVE10"
+    assert order.discount_cents == 1000
+    assert order.total_cents == 9000
+    assert fake_stripe_client.v1.coupons.created_params[0]["percent_off"] == 10.0
+
+
+@pytest.mark.asyncio
+async def test_checkout_applies_fixed_discount_clamped_to_subtotal(
+    service: MarketplaceService,
+    discount_service: DiscountCodeService,
+    fake_stripe_client: FakeStripeClient,
+) -> None:
+    item = await service.create_item(_create_command(price_cents=500))
+    await discount_service.create_code(
+        CreateDiscountCode(
+            code="BIGDISCOUNT",
+            discount_type=DiscountType.FIXED,
+            value=5000,
+            expires_at=None,
+            max_redemptions=None,
+        )
+    )
+
+    order, _ = await service.create_checkout_session(
+        CreateCheckoutSession(
+            lines=[CartLine(item_id=item.id, quantity=1)],
+            customer_id=None,
+            customer_email=None,
+            discount_code="BIGDISCOUNT",
+        )
+    )
+
+    assert order.discount_cents == 500
+    assert order.total_cents == 0
+    assert fake_stripe_client.v1.coupons.created_params[0]["amount_off"] == 500
+
+
+@pytest.mark.asyncio
+async def test_checkout_rejects_unknown_discount_code(service: MarketplaceService) -> None:
+    item = await service.create_item(_create_command())
+
+    with pytest.raises(DiscountCodeNotFoundError):
+        await service.create_checkout_session(
+            CreateCheckoutSession(
+                lines=[CartLine(item_id=item.id, quantity=1)],
+                customer_id=None,
+                customer_email=None,
+                discount_code="NOPE",
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_checkout_rejects_inactive_discount_code(
+    service: MarketplaceService,
+    discount_service: DiscountCodeService,
+) -> None:
+    item = await service.create_item(_create_command())
+    code = await discount_service.create_code(
+        CreateDiscountCode(
+            code="OFF",
+            discount_type=DiscountType.PERCENT,
+            value=10,
+            expires_at=None,
+            max_redemptions=None,
+        )
+    )
+    await discount_service.set_active(code.id, False)
+
+    with pytest.raises(DiscountCodeInvalidError):
+        await service.create_checkout_session(
+            CreateCheckoutSession(
+                lines=[CartLine(item_id=item.id, quantity=1)],
+                customer_id=None,
+                customer_email=None,
+                discount_code="OFF",
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_checkout_rejects_expired_discount_code(
+    service: MarketplaceService,
+    discount_service: DiscountCodeService,
+) -> None:
+    item = await service.create_item(_create_command())
+    await discount_service.create_code(
+        CreateDiscountCode(
+            code="EXPIRED",
+            discount_type=DiscountType.PERCENT,
+            value=10,
+            expires_at=NOW - timedelta(days=1),
+            max_redemptions=None,
+        )
+    )
+
+    with pytest.raises(DiscountCodeInvalidError):
+        await service.create_checkout_session(
+            CreateCheckoutSession(
+                lines=[CartLine(item_id=item.id, quantity=1)],
+                customer_id=None,
+                customer_email=None,
+                discount_code="EXPIRED",
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_checkout_rejects_exhausted_discount_code(
+    service: MarketplaceService,
+    discount_service: DiscountCodeService,
+    discount_code_repository: InMemoryDiscountCodeRepository,
+) -> None:
+    item = await service.create_item(_create_command())
+    code = await discount_service.create_code(
+        CreateDiscountCode(
+            code="LIMITED",
+            discount_type=DiscountType.PERCENT,
+            value=10,
+            expires_at=None,
+            max_redemptions=1,
+        )
+    )
+    exhausted = replace(code, redemption_count=1)
+    await discount_code_repository.update(exhausted)
+
+    with pytest.raises(DiscountCodeInvalidError):
+        await service.create_checkout_session(
+            CreateCheckoutSession(
+                lines=[CartLine(item_id=item.id, quantity=1)],
+                customer_id=None,
+                customer_email=None,
+                discount_code="LIMITED",
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_webhook_completed_increments_discount_redemption_count(
+    service: MarketplaceService,
+    discount_service: DiscountCodeService,
+    discount_code_repository: InMemoryDiscountCodeRepository,
+) -> None:
+    item = await service.create_item(_create_command())
+    await discount_service.create_code(
+        CreateDiscountCode(
+            code="SAVE10",
+            discount_type=DiscountType.PERCENT,
+            value=10,
+            expires_at=None,
+            max_redemptions=None,
+        )
+    )
+    order, _ = await service.create_checkout_session(
+        CreateCheckoutSession(
+            lines=[CartLine(item_id=item.id, quantity=1)],
+            customer_id=None,
+            customer_email=None,
+            discount_code="SAVE10",
+        )
+    )
+
+    payload = _event_payload("checkout.session.completed", order.stripe_checkout_session_id)
+    await service.handle_webhook_event(payload, _sign(payload))
+
+    updated_code = await discount_code_repository.get_by_code("SAVE10")
+    assert updated_code is not None
+    assert updated_code.redemption_count == 1
+
+
+@pytest.mark.asyncio
+async def test_duplicate_webhook_delivery_does_not_double_increment_redemption(
+    service: MarketplaceService,
+    discount_service: DiscountCodeService,
+    discount_code_repository: InMemoryDiscountCodeRepository,
+) -> None:
+    item = await service.create_item(_create_command())
+    await discount_service.create_code(
+        CreateDiscountCode(
+            code="SAVE10",
+            discount_type=DiscountType.PERCENT,
+            value=10,
+            expires_at=None,
+            max_redemptions=None,
+        )
+    )
+    order, _ = await service.create_checkout_session(
+        CreateCheckoutSession(
+            lines=[CartLine(item_id=item.id, quantity=1)],
+            customer_id=None,
+            customer_email=None,
+            discount_code="SAVE10",
+        )
+    )
+
+    payload = _event_payload("checkout.session.completed", order.stripe_checkout_session_id)
+    await service.handle_webhook_event(payload, _sign(payload))
+    await service.handle_webhook_event(payload, _sign(payload))
+
+    updated_code = await discount_code_repository.get_by_code("SAVE10")
+    assert updated_code is not None
+    assert updated_code.redemption_count == 1

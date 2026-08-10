@@ -19,6 +19,7 @@ from site_api.db.repositories import (
     SqlAlchemyBlogPostRepository,
     SqlAlchemyCommentRepository,
     SqlAlchemyContactRequestRepository,
+    SqlAlchemyDiscountCodeRepository,
     SqlAlchemyLeadNoteRepository,
     SqlAlchemyMarketplaceItemRepository,
     SqlAlchemyOrderRepository,
@@ -34,6 +35,7 @@ from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.dashboard import DashboardService
+from site_api.services.discount_codes import DiscountCodeService
 from site_api.services.email import EmailService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
@@ -284,6 +286,18 @@ def get_wishlist_repository(
     return SqlAlchemyWishlistRepository(session)
 
 
+def get_discount_code_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyDiscountCodeRepository:
+    return SqlAlchemyDiscountCodeRepository(session)
+
+
+def get_discount_code_service(
+    repository: Annotated[SqlAlchemyDiscountCodeRepository, Depends(get_discount_code_repository)],
+) -> DiscountCodeService:
+    return DiscountCodeService(repository)
+
+
 def get_marketplace_service(
     item_repository: Annotated[
         SqlAlchemyMarketplaceItemRepository, Depends(get_marketplace_item_repository)
@@ -291,6 +305,9 @@ def get_marketplace_service(
     order_repository: Annotated[SqlAlchemyOrderRepository, Depends(get_order_repository)],
     wishlist_repository: Annotated[SqlAlchemyWishlistRepository, Depends(get_wishlist_repository)],
     stripe_client: Annotated[stripe.StripeClient | None, Depends(get_stripe_client)],
+    discount_code_repository: Annotated[
+        SqlAlchemyDiscountCodeRepository, Depends(get_discount_code_repository)
+    ],
     email_service: Annotated[EmailService, Depends(get_email_service)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> MarketplaceService:
@@ -304,6 +321,7 @@ def get_marketplace_service(
         f"{settings.public_site_url}/marketplace/success?session_id={{CHECKOUT_SESSION_ID}}",
         f"{settings.public_site_url}/cart",
         email_service,
+        discount_code_repository,
     )
 
 
