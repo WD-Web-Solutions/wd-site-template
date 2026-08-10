@@ -17,6 +17,14 @@ from site_api.domain.blog import (
     TagSubscription,
 )
 from site_api.domain.contacts import ContactRequest
+from site_api.domain.marketplace import (
+    ItemNotFoundError,
+    MarketplaceItem,
+    Order,
+    OrderItem,
+    OrderStatus,
+    WishlistItem,
+)
 from site_api.domain.scheduling import Appointment, AppointmentStatus, SlotNotFoundError
 from site_api.domain.users import AccountStatus, User, UserNotFoundError, UserRole
 from site_api.main import create_app
@@ -25,6 +33,7 @@ from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
 
 
@@ -247,6 +256,168 @@ class InMemoryAppointmentRepository:
         return sorted(results, key=lambda appointment: appointment.starts_at, reverse=True)
 
 
+class InMemoryMarketplaceItemRepository:
+    def __init__(self) -> None:
+        self.items: list[MarketplaceItem] = []
+
+    async def add(self, item: MarketplaceItem) -> MarketplaceItem:
+        self.items.append(item)
+        return item
+
+    async def update(self, item: MarketplaceItem) -> MarketplaceItem:
+        for index, existing in enumerate(self.items):
+            if existing.id == item.id:
+                self.items[index] = item
+                return item
+        raise ItemNotFoundError
+
+    async def delete(self, item_id: UUID) -> None:
+        for index, item in enumerate(self.items):
+            if item.id == item_id:
+                del self.items[index]
+                return
+        raise ItemNotFoundError
+
+    async def get_by_id(self, item_id: UUID) -> MarketplaceItem | None:
+        for item in self.items:
+            if item.id == item_id:
+                return item
+        return None
+
+    async def get_by_slug(self, slug: str) -> MarketplaceItem | None:
+        for item in self.items:
+            if item.slug == slug:
+                return item
+        return None
+
+    async def slug_exists(self, slug: str) -> bool:
+        return any(item.slug == slug for item in self.items)
+
+    async def list_active(self) -> list[MarketplaceItem]:
+        return [item for item in self.items if item.is_active]
+
+    async def list_all(self) -> list[MarketplaceItem]:
+        return list(self.items)
+
+
+class InMemoryOrderRepository:
+    def __init__(self) -> None:
+        self.orders: list[Order] = []
+        self.order_items: list[OrderItem] = []
+
+    async def add(self, order: Order, items: list[OrderItem]) -> Order:
+        self.orders.append(order)
+        self.order_items.extend(items)
+        return order
+
+    async def update_status(
+        self,
+        order_id: UUID,
+        status: OrderStatus,
+        stripe_payment_intent_id: str | None,
+        customer_email: str | None,
+    ) -> Order:
+        for index, order in enumerate(self.orders):
+            if order.id == order_id:
+                updated = replace(
+                    order,
+                    status=status,
+                    stripe_payment_intent_id=stripe_payment_intent_id
+                    or order.stripe_payment_intent_id,
+                    customer_email=customer_email or order.customer_email,
+                )
+                self.orders[index] = updated
+                return updated
+        raise ValueError("order not found")
+
+    async def get_by_id(self, order_id: UUID) -> Order | None:
+        for order in self.orders:
+            if order.id == order_id:
+                return order
+        return None
+
+    async def get_by_session_id(self, stripe_checkout_session_id: str) -> Order | None:
+        for order in self.orders:
+            if order.stripe_checkout_session_id == stripe_checkout_session_id:
+                return order
+        return None
+
+    async def list_items_for_order(self, order_id: UUID) -> list[OrderItem]:
+        return [item for item in self.order_items if item.order_id == order_id]
+
+    async def list_for_customer(self, customer_id: UUID) -> list[Order]:
+        results = [order for order in self.orders if order.customer_id == customer_id]
+        return sorted(results, key=lambda order: order.created_at, reverse=True)
+
+    async def list_all(self, status: OrderStatus | None = None) -> list[Order]:
+        results = self.orders
+        if status is not None:
+            results = [order for order in results if order.status is status]
+        return sorted(results, key=lambda order: order.created_at, reverse=True)
+
+    async def count_orders_for_item(self, item_id: UUID) -> int:
+        return sum(1 for item in self.order_items if item.marketplace_item_id == item_id)
+
+
+class InMemoryWishlistRepository:
+    def __init__(self) -> None:
+        self.entries: list[WishlistItem] = []
+
+    async def add(self, wishlist_item: WishlistItem) -> WishlistItem:
+        self.entries.append(wishlist_item)
+        return wishlist_item
+
+    async def remove(self, user_id: UUID, marketplace_item_id: UUID) -> None:
+        self.entries = [
+            entry
+            for entry in self.entries
+            if not (entry.user_id == user_id and entry.marketplace_item_id == marketplace_item_id)
+        ]
+
+    async def get(self, user_id: UUID, marketplace_item_id: UUID) -> WishlistItem | None:
+        for entry in self.entries:
+            if entry.user_id == user_id and entry.marketplace_item_id == marketplace_item_id:
+                return entry
+        return None
+
+    async def list_for_user(self, user_id: UUID) -> list[WishlistItem]:
+        return [entry for entry in self.entries if entry.user_id == user_id]
+
+
+class FakeStripeCheckoutSession:
+    def __init__(self, session_id: str, url: str) -> None:
+        self.id = session_id
+        self.url = url
+
+
+class FakeStripeCheckoutSessions:
+    def __init__(self) -> None:
+        self.created_params: list[dict] = []
+        self.next_session_id = "cs_test_1"
+
+    async def create_async(self, params: dict) -> FakeStripeCheckoutSession:
+        self.created_params.append(params)
+        session_id = self.next_session_id
+        return FakeStripeCheckoutSession(
+            session_id, f"https://checkout.stripe.com/pay/{session_id}"
+        )
+
+
+class FakeStripeCheckout:
+    def __init__(self) -> None:
+        self.sessions = FakeStripeCheckoutSessions()
+
+
+class FakeStripeV1:
+    def __init__(self) -> None:
+        self.checkout = FakeStripeCheckout()
+
+
+class FakeStripeClient:
+    def __init__(self) -> None:
+        self.v1 = FakeStripeV1()
+
+
 class FakeAnthropicTextBlock:
     def __init__(self, text: str) -> None:
         self.type = "text"
@@ -390,6 +561,45 @@ def chat_service(
 
 
 @pytest.fixture
+def marketplace_item_repository() -> InMemoryMarketplaceItemRepository:
+    return InMemoryMarketplaceItemRepository()
+
+
+@pytest.fixture
+def order_repository() -> InMemoryOrderRepository:
+    return InMemoryOrderRepository()
+
+
+@pytest.fixture
+def wishlist_repository() -> InMemoryWishlistRepository:
+    return InMemoryWishlistRepository()
+
+
+@pytest.fixture
+def fake_stripe_client() -> FakeStripeClient:
+    return FakeStripeClient()
+
+
+@pytest.fixture
+def marketplace_service(
+    marketplace_item_repository: InMemoryMarketplaceItemRepository,
+    order_repository: InMemoryOrderRepository,
+    wishlist_repository: InMemoryWishlistRepository,
+    fake_stripe_client: FakeStripeClient,
+) -> MarketplaceService:
+    return MarketplaceService(
+        marketplace_item_repository,
+        order_repository,
+        wishlist_repository,
+        fake_stripe_client,  # type: ignore[arg-type]
+        "whsec_test_secret",
+        "usd",
+        "http://localhost:4200/marketplace/success?session_id={CHECKOUT_SESSION_ID}",
+        "http://localhost:4200/cart",
+    )
+
+
+@pytest.fixture
 def app(
     contact_service: ContactRequestService,
     auth_service: AuthService,
@@ -398,6 +608,7 @@ def app(
     file_storage: FakeFileStorage,
     scheduling_service: SchedulingService,
     chat_service: ChatService,
+    marketplace_service: MarketplaceService,
 ) -> FastAPI:
     settings = Settings(environment="test", cors_origins=[], database_url=None)
     return create_app(
@@ -409,6 +620,7 @@ def app(
         file_storage_provider=lambda: file_storage,
         scheduling_service_provider=lambda: scheduling_service,
         chat_service_provider=lambda: chat_service,
+        marketplace_service_provider=lambda: marketplace_service,
     )
 
 

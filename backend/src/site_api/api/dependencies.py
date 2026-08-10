@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
+import stripe
 from anthropic import AsyncAnthropic
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -18,8 +19,11 @@ from site_api.db.repositories import (
     SqlAlchemyBlogPostRepository,
     SqlAlchemyCommentRepository,
     SqlAlchemyContactRequestRepository,
+    SqlAlchemyMarketplaceItemRepository,
+    SqlAlchemyOrderRepository,
     SqlAlchemyTagSubscriptionRepository,
     SqlAlchemyUserRepository,
+    SqlAlchemyWishlistRepository,
 )
 from site_api.domain.users import AuthenticatedUser, UserRole
 from site_api.services.admin import AdminService
@@ -27,6 +31,7 @@ from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -194,6 +199,15 @@ def get_file_storage(settings: Annotated[Settings, Depends(get_settings)]) -> Lo
     )
 
 
+def get_marketplace_file_storage(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> LocalFileStorage:
+    return LocalFileStorage(
+        base_dir=Path(settings.marketplace_uploads_dir),
+        base_url=f"{settings.api_prefix}/uploads/marketplace",
+    )
+
+
 def get_anthropic_client(request: Request) -> AsyncAnthropic | None:
     return request.app.state.anthropic_client
 
@@ -209,4 +223,49 @@ def get_chat_service(
 ) -> ChatService:
     return ChatService(
         client, blog_repository, appointment_repository, user_repository, settings.chat_model
+    )
+
+
+def get_stripe_client(request: Request) -> stripe.StripeClient | None:
+    return request.app.state.stripe_client
+
+
+def get_marketplace_item_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyMarketplaceItemRepository:
+    return SqlAlchemyMarketplaceItemRepository(session)
+
+
+def get_order_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyOrderRepository:
+    return SqlAlchemyOrderRepository(session)
+
+
+def get_wishlist_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyWishlistRepository:
+    return SqlAlchemyWishlistRepository(session)
+
+
+def get_marketplace_service(
+    item_repository: Annotated[
+        SqlAlchemyMarketplaceItemRepository, Depends(get_marketplace_item_repository)
+    ],
+    order_repository: Annotated[SqlAlchemyOrderRepository, Depends(get_order_repository)],
+    wishlist_repository: Annotated[
+        SqlAlchemyWishlistRepository, Depends(get_wishlist_repository)
+    ],
+    stripe_client: Annotated[stripe.StripeClient | None, Depends(get_stripe_client)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MarketplaceService:
+    return MarketplaceService(
+        item_repository,
+        order_repository,
+        wishlist_repository,
+        stripe_client,
+        settings.stripe_webhook_secret,
+        settings.marketplace_currency,
+        f"{settings.public_site_url}/marketplace/success?session_id={{CHECKOUT_SESSION_ID}}",
+        f"{settings.public_site_url}/cart",
     )

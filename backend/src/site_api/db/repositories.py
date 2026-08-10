@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from site_api.db.models import (
@@ -10,8 +10,12 @@ from site_api.db.models import (
     BlogPostRecord,
     CommentRecord,
     ContactRequestRecord,
+    MarketplaceItemRecord,
+    OrderItemRecord,
+    OrderRecord,
     TagSubscriptionRecord,
     UserRecord,
+    WishlistItemRecord,
 )
 from site_api.domain.account_notes import AccountNote
 from site_api.domain.blog import (
@@ -23,6 +27,15 @@ from site_api.domain.blog import (
     TagSubscription,
 )
 from site_api.domain.contacts import ContactRequest
+from site_api.domain.marketplace import (
+    ItemNotFoundError,
+    MarketplaceItem,
+    Order,
+    OrderItem,
+    OrderNotFoundError,
+    OrderStatus,
+    WishlistItem,
+)
 from site_api.domain.scheduling import Appointment, AppointmentStatus, SlotNotFoundError
 from site_api.domain.users import AccountStatus, User, UserNotFoundError, UserRole
 
@@ -461,3 +474,269 @@ class SqlAlchemyAppointmentRepository:
         query = query.order_by(AppointmentRecord.starts_at.desc())
         result = await self._session.execute(query)
         return [_to_domain_appointment(record) for record in result.scalars().all()]
+
+
+def _to_domain_item(record: MarketplaceItemRecord) -> MarketplaceItem:
+    return MarketplaceItem(
+        id=record.id,
+        name=record.name,
+        slug=record.slug,
+        description=record.description,
+        price_cents=record.price_cents,
+        image_url=record.image_url,
+        is_active=record.is_active,
+        created_by_admin_id=record.created_by_admin_id,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+class SqlAlchemyMarketplaceItemRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, item: MarketplaceItem) -> MarketplaceItem:
+        self._session.add(
+            MarketplaceItemRecord(
+                id=item.id,
+                name=item.name,
+                slug=item.slug,
+                description=item.description,
+                price_cents=item.price_cents,
+                image_url=item.image_url,
+                is_active=item.is_active,
+                created_by_admin_id=item.created_by_admin_id,
+                created_at=item.created_at,
+                updated_at=item.updated_at,
+            )
+        )
+        await self._session.flush()
+        return item
+
+    async def update(self, item: MarketplaceItem) -> MarketplaceItem:
+        record = await self._session.get(MarketplaceItemRecord, item.id)
+        if record is None:
+            raise ItemNotFoundError
+        record.name = item.name
+        record.description = item.description
+        record.price_cents = item.price_cents
+        record.image_url = item.image_url
+        record.is_active = item.is_active
+        record.updated_at = item.updated_at
+        await self._session.flush()
+        return _to_domain_item(record)
+
+    async def delete(self, item_id: UUID) -> None:
+        record = await self._session.get(MarketplaceItemRecord, item_id)
+        if record is None:
+            raise ItemNotFoundError
+        await self._session.delete(record)
+        await self._session.flush()
+
+    async def get_by_id(self, item_id: UUID) -> MarketplaceItem | None:
+        record = await self._session.get(MarketplaceItemRecord, item_id)
+        return None if record is None else _to_domain_item(record)
+
+    async def get_by_slug(self, slug: str) -> MarketplaceItem | None:
+        result = await self._session.execute(
+            select(MarketplaceItemRecord).where(MarketplaceItemRecord.slug == slug)
+        )
+        record = result.scalar_one_or_none()
+        return None if record is None else _to_domain_item(record)
+
+    async def slug_exists(self, slug: str) -> bool:
+        result = await self._session.execute(
+            select(MarketplaceItemRecord.id).where(MarketplaceItemRecord.slug == slug)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def list_active(self) -> list[MarketplaceItem]:
+        result = await self._session.execute(
+            select(MarketplaceItemRecord)
+            .where(MarketplaceItemRecord.is_active.is_(True))
+            .order_by(MarketplaceItemRecord.created_at.desc())
+        )
+        return [_to_domain_item(record) for record in result.scalars().all()]
+
+    async def list_all(self) -> list[MarketplaceItem]:
+        result = await self._session.execute(
+            select(MarketplaceItemRecord).order_by(MarketplaceItemRecord.created_at.desc())
+        )
+        return [_to_domain_item(record) for record in result.scalars().all()]
+
+
+def _to_domain_order(record: OrderRecord) -> Order:
+    return Order(
+        id=record.id,
+        stripe_checkout_session_id=record.stripe_checkout_session_id,
+        stripe_payment_intent_id=record.stripe_payment_intent_id,
+        customer_id=record.customer_id,
+        customer_email=record.customer_email,
+        status=OrderStatus(record.status),
+        total_cents=record.total_cents,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+def _to_domain_order_item(record: OrderItemRecord) -> OrderItem:
+    return OrderItem(
+        id=record.id,
+        order_id=record.order_id,
+        marketplace_item_id=record.marketplace_item_id,
+        item_name=record.item_name,
+        unit_price_cents=record.unit_price_cents,
+        quantity=record.quantity,
+        line_total_cents=record.line_total_cents,
+    )
+
+
+class SqlAlchemyOrderRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, order: Order, items: list[OrderItem]) -> Order:
+        self._session.add(
+            OrderRecord(
+                id=order.id,
+                stripe_checkout_session_id=order.stripe_checkout_session_id,
+                stripe_payment_intent_id=order.stripe_payment_intent_id,
+                customer_id=order.customer_id,
+                customer_email=order.customer_email,
+                status=order.status.value,
+                total_cents=order.total_cents,
+                created_at=order.created_at,
+                updated_at=order.updated_at,
+            )
+        )
+        for item in items:
+            self._session.add(
+                OrderItemRecord(
+                    id=item.id,
+                    order_id=item.order_id,
+                    marketplace_item_id=item.marketplace_item_id,
+                    item_name=item.item_name,
+                    unit_price_cents=item.unit_price_cents,
+                    quantity=item.quantity,
+                    line_total_cents=item.line_total_cents,
+                )
+            )
+        await self._session.flush()
+        return order
+
+    async def update_status(
+        self,
+        order_id: UUID,
+        status: OrderStatus,
+        stripe_payment_intent_id: str | None,
+        customer_email: str | None,
+    ) -> Order:
+        record = await self._session.get(OrderRecord, order_id)
+        if record is None:
+            raise OrderNotFoundError
+        record.status = status.value
+        if stripe_payment_intent_id is not None:
+            record.stripe_payment_intent_id = stripe_payment_intent_id
+        if customer_email is not None:
+            record.customer_email = customer_email
+        await self._session.flush()
+        return _to_domain_order(record)
+
+    async def get_by_id(self, order_id: UUID) -> Order | None:
+        record = await self._session.get(OrderRecord, order_id)
+        return None if record is None else _to_domain_order(record)
+
+    async def get_by_session_id(self, stripe_checkout_session_id: str) -> Order | None:
+        result = await self._session.execute(
+            select(OrderRecord).where(
+                OrderRecord.stripe_checkout_session_id == stripe_checkout_session_id
+            )
+        )
+        record = result.scalar_one_or_none()
+        return None if record is None else _to_domain_order(record)
+
+    async def list_items_for_order(self, order_id: UUID) -> list[OrderItem]:
+        result = await self._session.execute(
+            select(OrderItemRecord).where(OrderItemRecord.order_id == order_id)
+        )
+        return [_to_domain_order_item(record) for record in result.scalars().all()]
+
+    async def list_for_customer(self, customer_id: UUID) -> list[Order]:
+        result = await self._session.execute(
+            select(OrderRecord)
+            .where(OrderRecord.customer_id == customer_id)
+            .order_by(OrderRecord.created_at.desc())
+        )
+        return [_to_domain_order(record) for record in result.scalars().all()]
+
+    async def list_all(self, status: OrderStatus | None = None) -> list[Order]:
+        query = select(OrderRecord)
+        if status is not None:
+            query = query.where(OrderRecord.status == status.value)
+        query = query.order_by(OrderRecord.created_at.desc())
+        result = await self._session.execute(query)
+        return [_to_domain_order(record) for record in result.scalars().all()]
+
+    async def count_orders_for_item(self, item_id: UUID) -> int:
+        result = await self._session.execute(
+            select(func.count())
+            .select_from(OrderItemRecord)
+            .where(OrderItemRecord.marketplace_item_id == item_id)
+        )
+        return result.scalar_one()
+
+
+class SqlAlchemyWishlistRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, wishlist_item: WishlistItem) -> WishlistItem:
+        self._session.add(
+            WishlistItemRecord(
+                id=wishlist_item.id,
+                user_id=wishlist_item.user_id,
+                marketplace_item_id=wishlist_item.marketplace_item_id,
+                created_at=wishlist_item.created_at,
+            )
+        )
+        await self._session.flush()
+        return wishlist_item
+
+    async def remove(self, user_id: UUID, marketplace_item_id: UUID) -> None:
+        result = await self._session.execute(
+            select(WishlistItemRecord).where(
+                WishlistItemRecord.user_id == user_id,
+                WishlistItemRecord.marketplace_item_id == marketplace_item_id,
+            )
+        )
+        record = result.scalar_one_or_none()
+        if record is not None:
+            await self._session.delete(record)
+            await self._session.flush()
+
+    async def get(self, user_id: UUID, marketplace_item_id: UUID) -> WishlistItem | None:
+        result = await self._session.execute(
+            select(WishlistItemRecord).where(
+                WishlistItemRecord.user_id == user_id,
+                WishlistItemRecord.marketplace_item_id == marketplace_item_id,
+            )
+        )
+        record = result.scalar_one_or_none()
+        return None if record is None else self._to_domain(record)
+
+    async def list_for_user(self, user_id: UUID) -> list[WishlistItem]:
+        result = await self._session.execute(
+            select(WishlistItemRecord)
+            .where(WishlistItemRecord.user_id == user_id)
+            .order_by(WishlistItemRecord.created_at.desc())
+        )
+        return [self._to_domain(record) for record in result.scalars().all()]
+
+    @staticmethod
+    def _to_domain(record: WishlistItemRecord) -> WishlistItem:
+        return WishlistItem(
+            id=record.id,
+            user_id=record.user_id,
+            marketplace_item_id=record.marketplace_item_id,
+            created_at=record.created_at,
+        )

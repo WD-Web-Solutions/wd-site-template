@@ -7,6 +7,7 @@ import {
 } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { CartService } from '../../../core/services/cart.service';
 
 
 
@@ -37,9 +38,11 @@ import { AuthService } from '../../../core/services/auth.service';
 export class NavbarComponent {
 
   private readonly authService = inject(AuthService);
+  private readonly cartService = inject(CartService);
   private readonly router = inject(Router);
 
   readonly currentUser = this.authService.currentUser;
+  readonly cartItemCount = this.cartService.itemCount;
 
 
   mobileMenuOpen = false;

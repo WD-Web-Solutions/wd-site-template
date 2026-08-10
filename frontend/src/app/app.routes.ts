@@ -132,6 +132,56 @@ export const routes: Routes = [
 
 
       {
+        path: 'marketplace',
+
+        loadComponent: () =>
+          import('./pages/marketplace/marketplace.component')
+            .then(m => m.MarketplaceComponent)
+
+      },
+
+
+      {
+        path: 'marketplace/success',
+
+        loadComponent: () =>
+          import('./pages/marketplace/checkout-success/checkout-success.component')
+            .then(m => m.CheckoutSuccessComponent)
+
+      },
+
+
+      {
+        path: 'marketplace/:slug',
+
+        loadComponent: () =>
+          import('./pages/marketplace/item-detail/item-detail.component')
+            .then(m => m.ItemDetailComponent)
+
+      },
+
+
+      {
+        path: 'cart',
+
+        loadComponent: () =>
+          import('./pages/cart/cart.component')
+            .then(m => m.CartComponent)
+
+      },
+
+
+      {
+        path: 'wishlist',
+
+        loadComponent: () =>
+          import('./pages/wishlist/wishlist.component')
+            .then(m => m.WishlistComponent)
+
+      },
+
+
+      {
         path: 'admin',
 
         canActivate: [adminGuard],
@@ -187,6 +237,30 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/admin-blog/post-editor/post-editor.component')
             .then(m => m.PostEditorComponent)
+
+      },
+
+
+      {
+        path: 'admin/marketplace',
+
+        canActivate: [adminGuard],
+
+        loadComponent: () =>
+          import('./pages/admin-marketplace/admin-marketplace.component')
+            .then(m => m.AdminMarketplaceComponent)
+
+      },
+
+
+      {
+        path: 'admin/marketplace/orders',
+
+        canActivate: [adminGuard],
+
+        loadComponent: () =>
+          import('./pages/admin-marketplace/admin-marketplace-orders/admin-marketplace-orders.component')
+            .then(m => m.AdminMarketplaceOrdersComponent)
 
       },
 

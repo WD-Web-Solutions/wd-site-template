@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import stripe
 from anthropic import AsyncAnthropic
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,7 @@ from site_api.api.dependencies import (
     get_chat_service,
     get_contact_request_service,
     get_file_storage,
+    get_marketplace_service,
     get_scheduling_service,
 )
 from site_api.api.routes import (
@@ -24,6 +26,8 @@ from site_api.api.routes import (
     chat,
     contact_requests,
     health,
+    marketplace,
+    marketplace_admin,
     scheduling,
     scheduling_admin,
 )
@@ -36,6 +40,7 @@ from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
 
 ContactServiceProvider = Callable[[], ContactRequestService]
@@ -45,6 +50,7 @@ BlogServiceProvider = Callable[[], BlogService]
 FileStorageProvider = Callable[[], FileStorage]
 SchedulingServiceProvider = Callable[[], SchedulingService]
 ChatServiceProvider = Callable[[], ChatService]
+MarketplaceServiceProvider = Callable[[], MarketplaceService]
 
 
 def create_app(
@@ -56,6 +62,7 @@ def create_app(
     file_storage_provider: FileStorageProvider | None = None,
     scheduling_service_provider: SchedulingServiceProvider | None = None,
     chat_service_provider: ChatServiceProvider | None = None,
+    marketplace_service_provider: MarketplaceServiceProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     configure_logging(resolved_settings.log_level)
@@ -78,6 +85,11 @@ def create_app(
         if resolved_settings.anthropic_api_key
         else None
     )
+    application.state.stripe_client = (
+        stripe.StripeClient(api_key=resolved_settings.stripe_secret_key)
+        if resolved_settings.stripe_secret_key
+        else None
+    )
 
     if resolved_settings.cors_origins:
         application.add_middleware(
@@ -93,6 +105,13 @@ def create_app(
         StaticFiles(directory=str(Path(resolved_settings.blog_uploads_dir)), check_dir=False),
         name="blog-uploads",
     )
+    application.mount(
+        f"{resolved_settings.api_prefix}/uploads/marketplace",
+        StaticFiles(
+            directory=str(Path(resolved_settings.marketplace_uploads_dir)), check_dir=False
+        ),
+        name="marketplace-uploads",
+    )
 
     application.include_router(health.router, prefix=resolved_settings.api_prefix)
     application.include_router(contact_requests.router, prefix=resolved_settings.api_prefix)
@@ -103,6 +122,8 @@ def create_app(
     application.include_router(scheduling.router, prefix=resolved_settings.api_prefix)
     application.include_router(scheduling_admin.router, prefix=resolved_settings.api_prefix)
     application.include_router(chat.router, prefix=resolved_settings.api_prefix)
+    application.include_router(marketplace.router, prefix=resolved_settings.api_prefix)
+    application.include_router(marketplace_admin.router, prefix=resolved_settings.api_prefix)
 
     if contact_service_provider is not None:
         application.dependency_overrides[get_contact_request_service] = contact_service_provider
@@ -124,6 +145,9 @@ def create_app(
 
     if chat_service_provider is not None:
         application.dependency_overrides[get_chat_service] = chat_service_provider
+
+    if marketplace_service_provider is not None:
+        application.dependency_overrides[get_marketplace_service] = marketplace_service_provider
 
     return application
 

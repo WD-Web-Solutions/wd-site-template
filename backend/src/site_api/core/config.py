@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     blog_uploads_dir: str = "uploads/blog"
     anthropic_api_key: str | None = None
     chat_model: str = "claude-opus-5"
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    marketplace_currency: str = "usd"
+    marketplace_uploads_dir: str = "uploads/marketplace"
+    public_site_url: str = "http://localhost:4200"
 
     @model_validator(mode="after")
     def _require_real_jwt_secret_in_production(self) -> Settings:
