@@ -48,6 +48,7 @@ def _make_lead(hours_ago: float, **overrides: object) -> ContactRequest:
         "status": ContactRequestStatus.RECEIVED,
         "created_at": created_at,
         "updated_at": created_at,
+        "follow_up_at": None,
     }
     defaults.update(overrides)
     return ContactRequest(**defaults)
@@ -199,3 +200,29 @@ async def test_recent_activity_respects_limit(
     summary = await service.get_summary(activity_limit=2)
 
     assert len(summary.recent_activity) == 2
+
+
+@pytest.mark.asyncio
+async def test_leads_needing_follow_up_counts_overdue_open_leads(
+    service: DashboardService,
+    repository: InMemoryContactRequestRepository,
+) -> None:
+    repository.contact_requests.append(
+        _make_lead(3, id=UUID(int=1), follow_up_at=NOW - timedelta(hours=1))
+    )  # overdue
+    repository.contact_requests.append(
+        _make_lead(3, id=UUID(int=2), follow_up_at=NOW + timedelta(days=1))
+    )  # not due yet
+    repository.contact_requests.append(_make_lead(3, id=UUID(int=3), follow_up_at=None))  # unset
+    repository.contact_requests.append(
+        _make_lead(
+            3,
+            id=UUID(int=4),
+            follow_up_at=NOW - timedelta(hours=1),
+            status=ContactRequestStatus.WON,
+        )
+    )  # closed, excluded
+
+    summary = await service.get_summary()
+
+    assert summary.leads_needing_follow_up == 1

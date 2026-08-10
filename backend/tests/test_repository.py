@@ -37,6 +37,7 @@ async def test_repository_maps_and_flushes_contact_request() -> None:
         status=ContactRequestStatus.RECEIVED,
         created_at=datetime(2026, 8, 4, 12, 0, tzinfo=UTC),
         updated_at=datetime(2026, 8, 4, 12, 0, tzinfo=UTC),
+        follow_up_at=None,
     )
 
     result = await repository.add(contact_request)

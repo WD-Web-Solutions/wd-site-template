@@ -145,6 +145,7 @@ class ContactRequestRecord(Base):
         DateTime(timezone=True),
         server_default=func.now(),
     )
+    follow_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class LeadNoteRecord(Base):

@@ -39,6 +39,7 @@
             <th class="px-4 py-3">Service</th>
             <th class="px-4 py-3">Received</th>
             <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Follow-up</th>
             <th class="px-4 py-3"></th>
           </tr>
         </thead>
@@ -74,6 +75,20 @@
                 </select>
               </td>
               <td class="px-4 py-3">
+                <input
+                  type="date"
+                  [ngModel]="toDateInputValue(lead.followUpAt)"
+                  (ngModelChange)="updateFollowUp(lead, $event)"
+                  [disabled]="isPending(lead.id)"
+                  class="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                @if (isOverdue(lead)) {
+                  <span class="mt-1 block rounded-full bg-red-100 px-2 py-0.5 text-center text-xs font-semibold text-red-700">
+                    Overdue
+                  </span>
+                }
+              </td>
+              <td class="px-4 py-3">
                 <button
                   type="button"
                   (click)="toggleExpanded(lead)"
@@ -86,7 +101,7 @@
 
             @if (expandedLeadId() === lead.id) {
               <tr>
-                <td colspan="6" class="bg-gray-50 px-4 py-4">
+                <td colspan="7" class="bg-gray-50 px-4 py-4">
                   <div class="max-w-2xl">
                     <p class="text-sm text-gray-700">{{ lead.message }}</p>
                     <p class="mt-2 text-xs text-gray-400">

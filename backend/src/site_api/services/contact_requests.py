@@ -61,6 +61,7 @@ class ContactRequestService:
             status=ContactRequestStatus.RECEIVED,
             created_at=now,
             updated_at=now,
+            follow_up_at=None,
         )
         saved_request = await self._repository.add(contact_request)
         logger.bind(contact_request_id=str(saved_request.id)).info("Contact request received")
@@ -91,11 +92,33 @@ class ContactRequestService:
             status=status,
             created_at=contact_request.created_at,
             updated_at=self._clock(),
+            follow_up_at=contact_request.follow_up_at,
         )
         saved = await self._repository.update(updated)
         logger.bind(contact_request_id=str(saved.id), status=status.value).info(
             "Lead status updated"
         )
+        return saved
+
+    async def set_follow_up(
+        self, contact_request_id: UUID, follow_up_at: datetime | None
+    ) -> ContactRequest:
+        contact_request = await self.get_by_id(contact_request_id)
+        updated = ContactRequest(
+            id=contact_request.id,
+            name=contact_request.name,
+            email_address=contact_request.email_address,
+            company=contact_request.company,
+            phone=contact_request.phone,
+            service=contact_request.service,
+            message=contact_request.message,
+            status=contact_request.status,
+            created_at=contact_request.created_at,
+            updated_at=self._clock(),
+            follow_up_at=follow_up_at,
+        )
+        saved = await self._repository.update(updated)
+        logger.bind(contact_request_id=str(saved.id)).info("Lead follow-up date updated")
         return saved
 
     async def list_notes(self, lead_id: UUID) -> list[LeadNote]:

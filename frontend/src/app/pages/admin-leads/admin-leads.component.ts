@@ -124,6 +124,40 @@ export class AdminLeadsComponent implements OnInit {
       });
   }
 
+  updateFollowUp(lead: LeadDetail, dateValue: string): void {
+    const followUpAt = dateValue ? new Date(`${dateValue}T00:00:00`).toISOString() : null;
+
+    this.pendingLeadIds.update(pending => new Set(pending).add(lead.id));
+    this.leadAdminService
+      .updateFollowUp(lead.id, followUpAt)
+      .pipe(
+        finalize(() => {
+          this.pendingLeadIds.update(pending => {
+            const next = new Set(pending);
+            next.delete(lead.id);
+            return next;
+          });
+        })
+      )
+      .subscribe({
+        next: updated => {
+          this.leads.update(items => items.map(item => (item.id === updated.id ? updated : item)));
+        },
+        error: () => this.errorMessage.set('Unable to update the follow-up date.')
+      });
+  }
+
+  toDateInputValue(isoDate: string | null): string {
+    return isoDate ? isoDate.slice(0, 10) : '';
+  }
+
+  isOverdue(lead: LeadDetail): boolean {
+    if (!lead.followUpAt || lead.status === 'won' || lead.status === 'lost') {
+      return false;
+    }
+    return new Date(lead.followUpAt).getTime() <= Date.now();
+  }
+
   isPending(id: string): boolean {
     return this.pendingLeadIds().has(id);
   }

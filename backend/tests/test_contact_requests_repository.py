@@ -70,6 +70,7 @@ def _make_lead(**overrides: object) -> ContactRequest:
         "status": ContactRequestStatus.RECEIVED,
         "created_at": CREATED_AT,
         "updated_at": CREATED_AT,
+        "follow_up_at": None,
     }
     defaults.update(overrides)
     return ContactRequest(**defaults)

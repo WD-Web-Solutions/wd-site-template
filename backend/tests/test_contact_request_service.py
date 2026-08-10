@@ -163,3 +163,30 @@ async def test_add_note_raises_when_lead_missing(service: ContactRequestService)
 async def test_list_notes_raises_when_lead_missing(service: ContactRequestService) -> None:
     with pytest.raises(ContactRequestNotFoundError):
         await service.list_notes(UUID(int=999))
+
+
+@pytest.mark.asyncio
+async def test_set_follow_up_persists_date(service: ContactRequestService) -> None:
+    lead = await service.submit(_submit_command())
+    follow_up_at = datetime(2026, 8, 15, 9, 0, tzinfo=UTC)
+
+    updated = await service.set_follow_up(lead.id, follow_up_at)
+
+    assert updated.follow_up_at == follow_up_at
+    assert updated.status == lead.status
+
+
+@pytest.mark.asyncio
+async def test_set_follow_up_clears_date(service: ContactRequestService) -> None:
+    lead = await service.submit(_submit_command())
+    await service.set_follow_up(lead.id, datetime(2026, 8, 15, 9, 0, tzinfo=UTC))
+
+    cleared = await service.set_follow_up(lead.id, None)
+
+    assert cleared.follow_up_at is None
+
+
+@pytest.mark.asyncio
+async def test_set_follow_up_raises_when_lead_missing(service: ContactRequestService) -> None:
+    with pytest.raises(ContactRequestNotFoundError):
+        await service.set_follow_up(UUID(int=999), datetime(2026, 8, 15, 9, 0, tzinfo=UTC))

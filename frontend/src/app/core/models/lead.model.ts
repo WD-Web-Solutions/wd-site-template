@@ -11,6 +11,7 @@ export interface LeadDetail {
   status: LeadStatus;
   createdAt: string;
   updatedAt: string;
+  followUpAt: string | null;
 }
 
 export interface LeadNote {

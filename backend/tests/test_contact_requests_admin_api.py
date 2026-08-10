@@ -209,3 +209,57 @@ async def test_list_lead_notes_404_when_lead_missing(
     )
 
     assert response.status_code == 404
+
+
+async def test_update_lead_follow_up_success(
+    client: TestClient,
+    user_repository: InMemoryUserRepository,
+) -> None:
+    token = await _make_admin_token(client, user_repository)
+    lead_id = _submit_lead(client)
+
+    response = client.patch(
+        f"/api/admin/contact-requests/{lead_id}/follow-up",
+        json={"followUpAt": "2026-08-15T09:00:00Z"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["followUpAt"] is not None
+
+
+async def test_update_lead_follow_up_can_clear(
+    client: TestClient,
+    user_repository: InMemoryUserRepository,
+) -> None:
+    token = await _make_admin_token(client, user_repository)
+    lead_id = _submit_lead(client)
+    client.patch(
+        f"/api/admin/contact-requests/{lead_id}/follow-up",
+        json={"followUpAt": "2026-08-15T09:00:00Z"},
+        headers=_auth_headers(token),
+    )
+
+    response = client.patch(
+        f"/api/admin/contact-requests/{lead_id}/follow-up",
+        json={"followUpAt": None},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["followUpAt"] is None
+
+
+async def test_update_lead_follow_up_404_when_missing(
+    client: TestClient,
+    user_repository: InMemoryUserRepository,
+) -> None:
+    token = await _make_admin_token(client, user_repository)
+
+    response = client.patch(
+        f"/api/admin/contact-requests/{UUID(int=999)}/follow-up",
+        json={"followUpAt": "2026-08-15T09:00:00Z"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 404

@@ -14,5 +14,6 @@ export interface DashboardSummary {
   revenueThisWeekCents: number;
   revenueThisMonthCents: number;
   pendingTestimonials: number;
+  leadsNeedingFollowUp: number;
   recentActivity: ActivityItem[];
 }

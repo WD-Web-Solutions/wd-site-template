@@ -21,6 +21,12 @@ export class LeadAdminService {
     return this.http.patch<LeadDetail>(`/api/admin/contact-requests/${id}/status`, { status });
   }
 
+  updateFollowUp(id: string, followUpAt: string | null): Observable<LeadDetail> {
+    return this.http.patch<LeadDetail>(`/api/admin/contact-requests/${id}/follow-up`, {
+      followUpAt
+    });
+  }
+
   listNotes(leadId: string): Observable<LeadNote[]> {
     return this.http.get<LeadNote[]>(`/api/admin/contact-requests/${leadId}/notes`);
   }

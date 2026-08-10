@@ -34,6 +34,7 @@ class DashboardSummaryResponse(BaseModel):
     revenue_this_week_cents: int
     revenue_this_month_cents: int
     pending_testimonials: int
+    leads_needing_follow_up: int
     recent_activity: list[ActivityItemResponse]
 
 
@@ -54,6 +55,7 @@ def to_summary_response(summary: DashboardSummary) -> DashboardSummaryResponse:
         revenue_this_week_cents=summary.revenue_this_week_cents,
         revenue_this_month_cents=summary.revenue_this_month_cents,
         pending_testimonials=summary.pending_testimonials,
+        leads_needing_follow_up=summary.leads_needing_follow_up,
         recent_activity=[_to_activity_response(item) for item in summary.recent_activity],
     )
 

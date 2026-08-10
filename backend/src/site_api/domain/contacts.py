@@ -25,6 +25,7 @@ class ContactRequest:
     status: ContactRequestStatus
     created_at: datetime
     updated_at: datetime
+    follow_up_at: datetime | None
 
 
 class ContactRequestNotFoundError(Exception):

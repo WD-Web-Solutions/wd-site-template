@@ -385,6 +385,7 @@ def _to_domain_contact_request(record: ContactRequestRecord) -> ContactRequest:
         status=ContactRequestStatus(record.status),
         created_at=record.created_at,
         updated_at=record.updated_at,
+        follow_up_at=record.follow_up_at,
     )
 
 
@@ -405,6 +406,7 @@ class SqlAlchemyContactRequestRepository:
                 status=contact_request.status.value,
                 created_at=contact_request.created_at,
                 updated_at=contact_request.updated_at,
+                follow_up_at=contact_request.follow_up_at,
             )
         )
         await self._session.flush()
@@ -416,6 +418,7 @@ class SqlAlchemyContactRequestRepository:
             raise ContactRequestNotFoundError
         record.status = contact_request.status.value
         record.updated_at = contact_request.updated_at
+        record.follow_up_at = contact_request.follow_up_at
         await self._session.flush()
         return _to_domain_contact_request(record)
 

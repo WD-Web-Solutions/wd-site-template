@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from site_api.domain.contacts import ContactRequest, ContactRequestRepository
+from site_api.domain.contacts import ContactRequest, ContactRequestRepository, ContactRequestStatus
 from site_api.domain.marketplace import Order, OrderRepository, OrderStatus
 from site_api.domain.scheduling import Appointment, AppointmentRepository, AppointmentStatus
 from site_api.domain.testimonials import TestimonialRepository, TestimonialStatus
 
 DEFAULT_ACTIVITY_LIMIT = 10
+_CLOSED_LEAD_STATUSES = frozenset({ContactRequestStatus.WON, ContactRequestStatus.LOST})
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +28,7 @@ class DashboardSummary:
     revenue_this_week_cents: int
     revenue_this_month_cents: int
     pending_testimonials: int
+    leads_needing_follow_up: int
     recent_activity: list[ActivityItem]
 
 
@@ -70,6 +72,13 @@ class DashboardService:
         revenue_this_month_cents = sum(
             order.total_cents for order in paid_orders if order.created_at >= month_cutoff
         )
+        leads_needing_follow_up = sum(
+            1
+            for lead in leads
+            if lead.follow_up_at is not None
+            and lead.follow_up_at <= now
+            and lead.status not in _CLOSED_LEAD_STATUSES
+        )
 
         activity = _build_activity(leads, booked_appointments, paid_orders)
 
@@ -80,6 +89,7 @@ class DashboardService:
             revenue_this_week_cents=revenue_this_week_cents,
             revenue_this_month_cents=revenue_this_month_cents,
             pending_testimonials=len(pending_testimonials),
+            leads_needing_follow_up=leads_needing_follow_up,
             recent_activity=activity[:activity_limit],
         )
 
