@@ -17,6 +17,7 @@ from site_api.api.dependencies import (
     get_file_storage,
     get_marketplace_service,
     get_scheduling_service,
+    get_testimonial_service,
 )
 from site_api.api.routes import (
     admin,
@@ -30,6 +31,8 @@ from site_api.api.routes import (
     marketplace_admin,
     scheduling,
     scheduling_admin,
+    testimonials,
+    testimonials_admin,
 )
 from site_api.core.config import Settings
 from site_api.core.logging import configure_logging
@@ -42,6 +45,7 @@ from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
+from site_api.services.testimonials import TestimonialService
 
 ContactServiceProvider = Callable[[], ContactRequestService]
 AuthServiceProvider = Callable[[], AuthService]
@@ -51,6 +55,7 @@ FileStorageProvider = Callable[[], FileStorage]
 SchedulingServiceProvider = Callable[[], SchedulingService]
 ChatServiceProvider = Callable[[], ChatService]
 MarketplaceServiceProvider = Callable[[], MarketplaceService]
+TestimonialServiceProvider = Callable[[], TestimonialService]
 
 
 def create_app(
@@ -63,6 +68,7 @@ def create_app(
     scheduling_service_provider: SchedulingServiceProvider | None = None,
     chat_service_provider: ChatServiceProvider | None = None,
     marketplace_service_provider: MarketplaceServiceProvider | None = None,
+    testimonial_service_provider: TestimonialServiceProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     configure_logging(resolved_settings.log_level)
@@ -124,6 +130,8 @@ def create_app(
     application.include_router(chat.router, prefix=resolved_settings.api_prefix)
     application.include_router(marketplace.router, prefix=resolved_settings.api_prefix)
     application.include_router(marketplace_admin.router, prefix=resolved_settings.api_prefix)
+    application.include_router(testimonials.router, prefix=resolved_settings.api_prefix)
+    application.include_router(testimonials_admin.router, prefix=resolved_settings.api_prefix)
 
     if contact_service_provider is not None:
         application.dependency_overrides[get_contact_request_service] = contact_service_provider
@@ -148,6 +156,9 @@ def create_app(
 
     if marketplace_service_provider is not None:
         application.dependency_overrides[get_marketplace_service] = marketplace_service_provider
+
+    if testimonial_service_provider is not None:
+        application.dependency_overrides[get_testimonial_service] = testimonial_service_provider
 
     return application
 

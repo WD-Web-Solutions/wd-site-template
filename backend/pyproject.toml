@@ -41,6 +41,7 @@ packages = ["src/site_api"]
 addopts = "--strict-markers --strict-config --cov=site_api --cov-report=term-missing --cov-fail-under=90"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+python_classes = []
 
 [tool.ruff]
 line-length = 100

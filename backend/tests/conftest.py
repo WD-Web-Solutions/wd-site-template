@@ -26,6 +26,7 @@ from site_api.domain.marketplace import (
     WishlistItem,
 )
 from site_api.domain.scheduling import Appointment, AppointmentStatus, SlotNotFoundError
+from site_api.domain.testimonials import Testimonial, TestimonialNotFoundError, TestimonialStatus
 from site_api.domain.users import AccountStatus, User, UserNotFoundError, UserRole
 from site_api.main import create_app
 from site_api.services.admin import AdminService
@@ -35,6 +36,7 @@ from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
+from site_api.services.testimonials import TestimonialService
 
 
 class InMemoryContactRequestRepository:
@@ -384,6 +386,56 @@ class InMemoryWishlistRepository:
         return [entry for entry in self.entries if entry.user_id == user_id]
 
 
+class InMemoryTestimonialRepository:
+    def __init__(self) -> None:
+        self.testimonials: list[Testimonial] = []
+
+    async def add(self, testimonial: Testimonial) -> Testimonial:
+        self.testimonials.append(testimonial)
+        return testimonial
+
+    async def update(self, testimonial: Testimonial) -> Testimonial:
+        for index, existing in enumerate(self.testimonials):
+            if existing.id == testimonial.id:
+                self.testimonials[index] = testimonial
+                return testimonial
+        raise TestimonialNotFoundError
+
+    async def delete(self, testimonial_id: UUID) -> None:
+        for index, testimonial in enumerate(self.testimonials):
+            if testimonial.id == testimonial_id:
+                del self.testimonials[index]
+                return
+        raise TestimonialNotFoundError
+
+    async def get_by_id(self, testimonial_id: UUID) -> Testimonial | None:
+        for testimonial in self.testimonials:
+            if testimonial.id == testimonial_id:
+                return testimonial
+        return None
+
+    async def get_by_customer_id(self, customer_id: UUID) -> Testimonial | None:
+        for testimonial in self.testimonials:
+            if testimonial.customer_id == customer_id:
+                return testimonial
+        return None
+
+    async def list_approved(self, limit: int | None = None) -> list[Testimonial]:
+        results = [
+            testimonial
+            for testimonial in self.testimonials
+            if testimonial.status is TestimonialStatus.APPROVED
+        ]
+        results = sorted(results, key=lambda testimonial: testimonial.created_at, reverse=True)
+        return results if limit is None else results[:limit]
+
+    async def list_all(self, status: TestimonialStatus | None = None) -> list[Testimonial]:
+        results = self.testimonials
+        if status is not None:
+            results = [testimonial for testimonial in results if testimonial.status is status]
+        return sorted(results, key=lambda testimonial: testimonial.created_at, reverse=True)
+
+
 class FakeStripeCheckoutSession:
     def __init__(self, session_id: str, url: str) -> None:
         self.id = session_id
@@ -600,6 +652,18 @@ def marketplace_service(
 
 
 @pytest.fixture
+def testimonial_repository() -> InMemoryTestimonialRepository:
+    return InMemoryTestimonialRepository()
+
+
+@pytest.fixture
+def testimonial_service(
+    testimonial_repository: InMemoryTestimonialRepository,
+) -> TestimonialService:
+    return TestimonialService(testimonial_repository)
+
+
+@pytest.fixture
 def app(
     contact_service: ContactRequestService,
     auth_service: AuthService,
@@ -609,6 +673,7 @@ def app(
     scheduling_service: SchedulingService,
     chat_service: ChatService,
     marketplace_service: MarketplaceService,
+    testimonial_service: TestimonialService,
 ) -> FastAPI:
     settings = Settings(environment="test", cors_origins=[], database_url=None)
     return create_app(
@@ -621,6 +686,7 @@ def app(
         scheduling_service_provider=lambda: scheduling_service,
         chat_service_provider=lambda: chat_service,
         marketplace_service_provider=lambda: marketplace_service,
+        testimonial_service_provider=lambda: testimonial_service,
     )
 
 

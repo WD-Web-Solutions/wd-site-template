@@ -204,6 +204,27 @@ class OrderItemRecord(Base):
     line_total_cents: Mapped[int] = mapped_column(Integer)
 
 
+class TestimonialRecord(Base):
+    __tablename__ = "testimonials"
+
+    id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
+    customer_id: Mapped[UUID | None] = mapped_column(
+        PostgresUUID(as_uuid=True), ForeignKey("users.id"), unique=True
+    )
+    customer_name: Mapped[str] = mapped_column(String(200))
+    rating: Mapped[int] = mapped_column(Integer)
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+
 class WishlistItemRecord(Base):
     __tablename__ = "wishlist_items"
     __table_args__ = (

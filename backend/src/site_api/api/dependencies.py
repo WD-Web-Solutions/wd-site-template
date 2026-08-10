@@ -22,6 +22,7 @@ from site_api.db.repositories import (
     SqlAlchemyMarketplaceItemRepository,
     SqlAlchemyOrderRepository,
     SqlAlchemyTagSubscriptionRepository,
+    SqlAlchemyTestimonialRepository,
     SqlAlchemyUserRepository,
     SqlAlchemyWishlistRepository,
 )
@@ -33,6 +34,7 @@ from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
+from site_api.services.testimonials import TestimonialService
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -269,3 +271,15 @@ def get_marketplace_service(
         f"{settings.public_site_url}/marketplace/success?session_id={{CHECKOUT_SESSION_ID}}",
         f"{settings.public_site_url}/cart",
     )
+
+
+def get_testimonial_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyTestimonialRepository:
+    return SqlAlchemyTestimonialRepository(session)
+
+
+def get_testimonial_service(
+    repository: Annotated[SqlAlchemyTestimonialRepository, Depends(get_testimonial_repository)],
+) -> TestimonialService:
+    return TestimonialService(repository)

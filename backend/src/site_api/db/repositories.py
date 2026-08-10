@@ -14,6 +14,7 @@ from site_api.db.models import (
     OrderItemRecord,
     OrderRecord,
     TagSubscriptionRecord,
+    TestimonialRecord,
     UserRecord,
     WishlistItemRecord,
 )
@@ -37,6 +38,11 @@ from site_api.domain.marketplace import (
     WishlistItem,
 )
 from site_api.domain.scheduling import Appointment, AppointmentStatus, SlotNotFoundError
+from site_api.domain.testimonials import (
+    Testimonial,
+    TestimonialNotFoundError,
+    TestimonialStatus,
+)
 from site_api.domain.users import AccountStatus, User, UserNotFoundError, UserRole
 
 
@@ -740,3 +746,85 @@ class SqlAlchemyWishlistRepository:
             marketplace_item_id=record.marketplace_item_id,
             created_at=record.created_at,
         )
+
+
+def _to_domain_testimonial(record: TestimonialRecord) -> Testimonial:
+    return Testimonial(
+        id=record.id,
+        customer_id=record.customer_id,
+        customer_name=record.customer_name,
+        rating=record.rating,
+        body=record.body,
+        status=TestimonialStatus(record.status),
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+class SqlAlchemyTestimonialRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, testimonial: Testimonial) -> Testimonial:
+        self._session.add(
+            TestimonialRecord(
+                id=testimonial.id,
+                customer_id=testimonial.customer_id,
+                customer_name=testimonial.customer_name,
+                rating=testimonial.rating,
+                body=testimonial.body,
+                status=testimonial.status.value,
+                created_at=testimonial.created_at,
+                updated_at=testimonial.updated_at,
+            )
+        )
+        await self._session.flush()
+        return testimonial
+
+    async def update(self, testimonial: Testimonial) -> Testimonial:
+        record = await self._session.get(TestimonialRecord, testimonial.id)
+        if record is None:
+            raise TestimonialNotFoundError
+        record.customer_name = testimonial.customer_name
+        record.rating = testimonial.rating
+        record.body = testimonial.body
+        record.status = testimonial.status.value
+        record.updated_at = testimonial.updated_at
+        await self._session.flush()
+        return _to_domain_testimonial(record)
+
+    async def delete(self, testimonial_id: UUID) -> None:
+        record = await self._session.get(TestimonialRecord, testimonial_id)
+        if record is None:
+            raise TestimonialNotFoundError
+        await self._session.delete(record)
+        await self._session.flush()
+
+    async def get_by_id(self, testimonial_id: UUID) -> Testimonial | None:
+        record = await self._session.get(TestimonialRecord, testimonial_id)
+        return None if record is None else _to_domain_testimonial(record)
+
+    async def get_by_customer_id(self, customer_id: UUID) -> Testimonial | None:
+        result = await self._session.execute(
+            select(TestimonialRecord).where(TestimonialRecord.customer_id == customer_id)
+        )
+        record = result.scalar_one_or_none()
+        return None if record is None else _to_domain_testimonial(record)
+
+    async def list_approved(self, limit: int | None = None) -> list[Testimonial]:
+        query = (
+            select(TestimonialRecord)
+            .where(TestimonialRecord.status == TestimonialStatus.APPROVED.value)
+            .order_by(TestimonialRecord.created_at.desc())
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self._session.execute(query)
+        return [_to_domain_testimonial(record) for record in result.scalars().all()]
+
+    async def list_all(self, status: TestimonialStatus | None = None) -> list[Testimonial]:
+        query = select(TestimonialRecord).order_by(TestimonialRecord.created_at.desc())
+        if status is not None:
+            query = query.where(TestimonialRecord.status == status.value)
+        result = await self._session.execute(query)
+        return [_to_domain_testimonial(record) for record in result.scalars().all()]
