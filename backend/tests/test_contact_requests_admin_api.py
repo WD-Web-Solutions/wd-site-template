@@ -145,3 +145,67 @@ async def test_update_lead_status_rejects_invalid_status(
     )
 
     assert response.status_code == 422
+
+
+def test_list_lead_notes_requires_admin(client: TestClient) -> None:
+    user = _register(client, "client@example.com")
+
+    response = client.get(
+        f"/api/admin/contact-requests/{UUID(int=1)}/notes",
+        headers=_auth_headers(user["accessToken"]),
+    )
+
+    assert response.status_code == 403
+
+
+async def test_add_and_list_lead_notes(
+    client: TestClient,
+    user_repository: InMemoryUserRepository,
+) -> None:
+    token = await _make_admin_token(client, user_repository)
+    lead_id = _submit_lead(client)
+
+    add_response = client.post(
+        f"/api/admin/contact-requests/{lead_id}/notes",
+        json={"body": "Called, left a voicemail."},
+        headers=_auth_headers(token),
+    )
+    assert add_response.status_code == 201
+    assert add_response.json()["authorName"] == "Admin Person"
+
+    list_response = client.get(
+        f"/api/admin/contact-requests/{lead_id}/notes",
+        headers=_auth_headers(token),
+    )
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
+    assert list_response.json()[0]["body"] == "Called, left a voicemail."
+
+
+async def test_add_lead_note_404_when_lead_missing(
+    client: TestClient,
+    user_repository: InMemoryUserRepository,
+) -> None:
+    token = await _make_admin_token(client, user_repository)
+
+    response = client.post(
+        f"/api/admin/contact-requests/{UUID(int=999)}/notes",
+        json={"body": "Note body"},
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 404
+
+
+async def test_list_lead_notes_404_when_lead_missing(
+    client: TestClient,
+    user_repository: InMemoryUserRepository,
+) -> None:
+    token = await _make_admin_token(client, user_repository)
+
+    response = client.get(
+        f"/api/admin/contact-requests/{UUID(int=999)}/notes",
+        headers=_auth_headers(token),
+    )
+
+    assert response.status_code == 404

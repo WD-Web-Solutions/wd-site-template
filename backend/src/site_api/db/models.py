@@ -147,6 +147,22 @@ class ContactRequestRecord(Base):
     )
 
 
+class LeadNoteRecord(Base):
+    __tablename__ = "lead_notes"
+
+    id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
+    lead_id: Mapped[UUID] = mapped_column(
+        PostgresUUID(as_uuid=True), ForeignKey("contact_requests.id"), index=True
+    )
+    author_id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), ForeignKey("users.id"))
+    author_name: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+
 class MarketplaceItemRecord(Base):
     __tablename__ = "marketplace_items"
 

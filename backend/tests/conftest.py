@@ -21,6 +21,7 @@ from site_api.domain.contacts import (
     ContactRequestNotFoundError,
     ContactRequestStatus,
 )
+from site_api.domain.lead_notes import LeadNote
 from site_api.domain.marketplace import (
     ItemNotFoundError,
     MarketplaceItem,
@@ -71,6 +72,19 @@ class InMemoryContactRequestRepository:
         if status is not None:
             results = [request for request in results if request.status is status]
         return sorted(results, key=lambda request: request.created_at, reverse=True)
+
+
+class InMemoryLeadNoteRepository:
+    def __init__(self) -> None:
+        self.notes: list[LeadNote] = []
+
+    async def add(self, note: LeadNote) -> LeadNote:
+        self.notes.append(note)
+        return note
+
+    async def list_for_lead(self, lead_id: UUID) -> list[LeadNote]:
+        results = [note for note in self.notes if note.lead_id == lead_id]
+        return sorted(results, key=lambda note: note.created_at, reverse=True)
 
 
 class InMemoryUserRepository:
@@ -568,11 +582,17 @@ def email_service(fake_ses_client: FakeSesClient) -> EmailService:
 
 
 @pytest.fixture
+def lead_note_repository() -> InMemoryLeadNoteRepository:
+    return InMemoryLeadNoteRepository()
+
+
+@pytest.fixture
 def contact_service(
     repository: InMemoryContactRequestRepository,
+    lead_note_repository: InMemoryLeadNoteRepository,
     email_service: EmailService,
 ) -> ContactRequestService:
-    return ContactRequestService(repository, email_service)
+    return ContactRequestService(repository, lead_note_repository, email_service)
 
 
 @pytest.fixture

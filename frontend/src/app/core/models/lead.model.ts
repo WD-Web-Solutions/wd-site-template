@@ -12,3 +12,10 @@ export interface LeadDetail {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface LeadNote {
+  id: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}

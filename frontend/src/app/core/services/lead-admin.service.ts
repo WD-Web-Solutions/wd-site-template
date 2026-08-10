@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-import { LeadDetail, LeadStatus } from '../models/lead.model';
+import { LeadDetail, LeadNote, LeadStatus } from '../models/lead.model';
 
 @Injectable({
   providedIn: 'root'
@@ -19,5 +19,13 @@ export class LeadAdminService {
 
   updateStatus(id: string, status: LeadStatus): Observable<LeadDetail> {
     return this.http.patch<LeadDetail>(`/api/admin/contact-requests/${id}/status`, { status });
+  }
+
+  listNotes(leadId: string): Observable<LeadNote[]> {
+    return this.http.get<LeadNote[]>(`/api/admin/contact-requests/${leadId}/notes`);
+  }
+
+  addNote(leadId: string, body: string): Observable<LeadNote> {
+    return this.http.post<LeadNote>(`/api/admin/contact-requests/${leadId}/notes`, { body });
   }
 }

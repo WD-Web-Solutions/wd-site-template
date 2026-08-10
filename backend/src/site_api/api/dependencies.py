@@ -19,6 +19,7 @@ from site_api.db.repositories import (
     SqlAlchemyBlogPostRepository,
     SqlAlchemyCommentRepository,
     SqlAlchemyContactRequestRepository,
+    SqlAlchemyLeadNoteRepository,
     SqlAlchemyMarketplaceItemRepository,
     SqlAlchemyOrderRepository,
     SqlAlchemyTagSubscriptionRepository,
@@ -106,13 +107,20 @@ def get_contact_request_repository(
     return SqlAlchemyContactRequestRepository(session)
 
 
+def get_lead_note_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyLeadNoteRepository:
+    return SqlAlchemyLeadNoteRepository(session)
+
+
 def get_contact_request_service(
     repository: Annotated[
         SqlAlchemyContactRequestRepository, Depends(get_contact_request_repository)
     ],
+    note_repository: Annotated[SqlAlchemyLeadNoteRepository, Depends(get_lead_note_repository)],
     email_service: Annotated[EmailService, Depends(get_email_service)],
 ) -> ContactRequestService:
-    return ContactRequestService(repository, email_service)
+    return ContactRequestService(repository, note_repository, email_service)
 
 
 def get_user_repository(

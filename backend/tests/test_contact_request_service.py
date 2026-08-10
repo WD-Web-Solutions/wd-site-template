@@ -6,21 +6,28 @@ import pytest
 
 from site_api.domain.contacts import ContactRequestNotFoundError, ContactRequestStatus
 from site_api.services.contact_requests import (
+    AddLeadNote,
     ContactRequestService,
     SubmitContactRequest,
 )
 from site_api.services.email import EmailService
-from tests.conftest import FakeSesClient, InMemoryContactRequestRepository
+from tests.conftest import (
+    FakeSesClient,
+    InMemoryContactRequestRepository,
+    InMemoryLeadNoteRepository,
+)
 
 
 @pytest.mark.asyncio
 async def test_submit_builds_and_persists_contact_request(
     repository: InMemoryContactRequestRepository,
+    lead_note_repository: InMemoryLeadNoteRepository,
 ) -> None:
     expected_id = UUID("9a53d09a-f258-4b09-9fb3-ef6df4c2f9fd")
     expected_time = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
     service = ContactRequestService(
         repository,
+        lead_note_repository,
         id_factory=lambda: expected_id,
         clock=lambda: expected_time,
     )
@@ -59,10 +66,13 @@ def _submit_command(**overrides: object) -> SubmitContactRequest:
 @pytest.fixture
 def service(
     repository: InMemoryContactRequestRepository,
+    lead_note_repository: InMemoryLeadNoteRepository,
     email_service: EmailService,
 ) -> ContactRequestService:
     ids = iter(UUID(int=n) for n in count(1))
-    return ContactRequestService(repository, email_service, id_factory=lambda: next(ids))
+    return ContactRequestService(
+        repository, lead_note_repository, email_service, id_factory=lambda: next(ids)
+    )
 
 
 @pytest.mark.asyncio
@@ -114,3 +124,42 @@ async def test_submit_notifies_admin_by_email(
 
     assert len(fake_ses_client.sent) == 1
     assert fake_ses_client.sent[0]["Destination"] == {"ToAddresses": ["admin@example.com"]}
+
+
+@pytest.mark.asyncio
+async def test_add_note_persists_and_lists_for_lead(service: ContactRequestService) -> None:
+    lead = await service.submit(_submit_command())
+
+    note = await service.add_note(
+        AddLeadNote(
+            lead_id=lead.id,
+            author_id=UUID(int=500),
+            author_name="Admin Person",
+            body="Called, left a voicemail.",
+        )
+    )
+
+    assert note.lead_id == lead.id
+    assert note.author_name == "Admin Person"
+
+    notes = await service.list_notes(lead.id)
+    assert [item.id for item in notes] == [note.id]
+
+
+@pytest.mark.asyncio
+async def test_add_note_raises_when_lead_missing(service: ContactRequestService) -> None:
+    with pytest.raises(ContactRequestNotFoundError):
+        await service.add_note(
+            AddLeadNote(
+                lead_id=UUID(int=999),
+                author_id=UUID(int=500),
+                author_name="Admin Person",
+                body="Note body",
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_list_notes_raises_when_lead_missing(service: ContactRequestService) -> None:
+    with pytest.raises(ContactRequestNotFoundError):
+        await service.list_notes(UUID(int=999))

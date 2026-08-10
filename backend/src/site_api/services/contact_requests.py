@@ -11,6 +11,7 @@ from site_api.domain.contacts import (
     ContactRequestRepository,
     ContactRequestStatus,
 )
+from site_api.domain.lead_notes import LeadNote, LeadNoteRepository
 from site_api.services.email import EmailService
 
 
@@ -24,15 +25,25 @@ class SubmitContactRequest:
     message: str
 
 
+@dataclass(frozen=True, slots=True)
+class AddLeadNote:
+    lead_id: UUID
+    author_id: UUID
+    author_name: str
+    body: str
+
+
 class ContactRequestService:
     def __init__(
         self,
         repository: ContactRequestRepository,
+        note_repository: LeadNoteRepository,
         email_service: EmailService | None = None,
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._repository = repository
+        self._notes = note_repository
         self._email = email_service or EmailService(None, None, None)
         self._id_factory = id_factory
         self._clock = clock
@@ -86,3 +97,22 @@ class ContactRequestService:
             "Lead status updated"
         )
         return saved
+
+    async def list_notes(self, lead_id: UUID) -> list[LeadNote]:
+        await self.get_by_id(lead_id)
+        return await self._notes.list_for_lead(lead_id)
+
+    async def add_note(self, command: AddLeadNote) -> LeadNote:
+        await self.get_by_id(command.lead_id)
+
+        note = LeadNote(
+            id=self._id_factory(),
+            lead_id=command.lead_id,
+            author_id=command.author_id,
+            author_name=command.author_name,
+            body=command.body,
+            created_at=self._clock(),
+        )
+        saved_note = await self._notes.add(note)
+        logger.bind(lead_id=str(command.lead_id)).info("Lead note added")
+        return saved_note

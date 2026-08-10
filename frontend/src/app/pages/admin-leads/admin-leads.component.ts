@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 
-import { LeadDetail, LeadStatus } from '../../core/models/lead.model';
+import { LeadDetail, LeadNote, LeadStatus } from '../../core/models/lead.model';
 import { LeadAdminService } from '../../core/services/lead-admin.service';
 
 @Component({
@@ -32,6 +32,11 @@ export class AdminLeadsComponent implements OnInit {
   readonly expandedLeadId = signal<string | null>(null);
   readonly pendingLeadIds = signal<Set<string>>(new Set());
 
+  readonly notes = signal<LeadNote[]>([]);
+  readonly notesLoading = signal(false);
+  readonly isAddingNote = signal(false);
+  newNoteBody = '';
+
   ngOnInit(): void {
     this.loadLeads();
   }
@@ -57,7 +62,41 @@ export class AdminLeadsComponent implements OnInit {
   }
 
   toggleExpanded(lead: LeadDetail): void {
-    this.expandedLeadId.set(this.expandedLeadId() === lead.id ? null : lead.id);
+    if (this.expandedLeadId() === lead.id) {
+      this.expandedLeadId.set(null);
+      return;
+    }
+
+    this.expandedLeadId.set(lead.id);
+    this.newNoteBody = '';
+    this.notesLoading.set(true);
+
+    this.leadAdminService
+      .listNotes(lead.id)
+      .pipe(finalize(() => this.notesLoading.set(false)))
+      .subscribe({
+        next: notes => this.notes.set(notes),
+        error: () => this.errorMessage.set('Unable to load notes.')
+      });
+  }
+
+  submitNote(leadId: string): void {
+    const body = this.newNoteBody.trim();
+    if (!body) {
+      return;
+    }
+
+    this.isAddingNote.set(true);
+    this.leadAdminService
+      .addNote(leadId, body)
+      .pipe(finalize(() => this.isAddingNote.set(false)))
+      .subscribe({
+        next: note => {
+          this.notes.update(existing => [note, ...existing]);
+          this.newNoteBody = '';
+        },
+        error: () => this.errorMessage.set('Unable to add that note.')
+      });
   }
 
   updateStatus(lead: LeadDetail, status: LeadStatus): void {

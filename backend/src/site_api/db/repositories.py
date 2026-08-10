@@ -10,6 +10,7 @@ from site_api.db.models import (
     BlogPostRecord,
     CommentRecord,
     ContactRequestRecord,
+    LeadNoteRecord,
     MarketplaceItemRecord,
     OrderItemRecord,
     OrderRecord,
@@ -32,6 +33,7 @@ from site_api.domain.contacts import (
     ContactRequestNotFoundError,
     ContactRequestStatus,
 )
+from site_api.domain.lead_notes import LeadNote
 from site_api.domain.marketplace import (
     ItemNotFoundError,
     MarketplaceItem,
@@ -427,6 +429,43 @@ class SqlAlchemyContactRequestRepository:
             query = query.where(ContactRequestRecord.status == status.value)
         result = await self._session.execute(query)
         return [_to_domain_contact_request(record) for record in result.scalars().all()]
+
+
+class SqlAlchemyLeadNoteRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, note: LeadNote) -> LeadNote:
+        self._session.add(
+            LeadNoteRecord(
+                id=note.id,
+                lead_id=note.lead_id,
+                author_id=note.author_id,
+                author_name=note.author_name,
+                body=note.body,
+                created_at=note.created_at,
+            )
+        )
+        await self._session.flush()
+        return note
+
+    async def list_for_lead(self, lead_id: UUID) -> list[LeadNote]:
+        result = await self._session.execute(
+            select(LeadNoteRecord)
+            .where(LeadNoteRecord.lead_id == lead_id)
+            .order_by(LeadNoteRecord.created_at.desc())
+        )
+        return [
+            LeadNote(
+                id=record.id,
+                lead_id=record.lead_id,
+                author_id=record.author_id,
+                author_name=record.author_name,
+                body=record.body,
+                created_at=record.created_at,
+            )
+            for record in result.scalars().all()
+        ]
 
 
 def _to_domain_appointment(record: AppointmentRecord) -> Appointment:
