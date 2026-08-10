@@ -6,6 +6,7 @@ import { finalize } from 'rxjs';
 import { ItemSummary } from '../../core/models/marketplace-item.model';
 import { CartService } from '../../core/services/cart.service';
 import { MarketplaceService } from '../../core/services/marketplace.service';
+import { SeoService } from '../../core/services/seo.service';
 import { WishlistService } from '../../core/services/wishlist.service';
 
 @Component({
@@ -20,6 +21,7 @@ export class WishlistComponent implements OnInit {
   private readonly marketplaceService = inject(MarketplaceService);
   private readonly cartService = inject(CartService);
   private readonly wishlistService = inject(WishlistService);
+  private readonly seoService = inject(SeoService);
 
   private readonly allItems = signal<ItemSummary[]>([]);
   readonly isLoading = signal(false);
@@ -31,6 +33,11 @@ export class WishlistComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.seoService.updatePage(
+      'Wishlist | WD Web Solutions',
+      'View and manage the items you have saved to your wishlist with WD Web Solutions.'
+    );
+
     this.isLoading.set(true);
     this.errorMessage.set('');
 

@@ -6,6 +6,7 @@ import { finalize } from 'rxjs';
 import { ItemSummary } from '../../core/models/marketplace-item.model';
 import { CartService } from '../../core/services/cart.service';
 import { MarketplaceService } from '../../core/services/marketplace.service';
+import { SeoService } from '../../core/services/seo.service';
 import { WishlistService } from '../../core/services/wishlist.service';
 import { HeroVideoComponent } from '../../shared/components/hero-video/hero-video.component';
 
@@ -21,6 +22,7 @@ export class MarketplaceComponent implements OnInit {
   private readonly marketplaceService = inject(MarketplaceService);
   private readonly cartService = inject(CartService);
   private readonly wishlistService = inject(WishlistService);
+  private readonly seoService = inject(SeoService);
 
   readonly items = signal<ItemSummary[]>([]);
   readonly isLoading = signal(false);
@@ -28,6 +30,11 @@ export class MarketplaceComponent implements OnInit {
   readonly addedItemId = signal<string | null>(null);
 
   ngOnInit(): void {
+    this.seoService.updatePage(
+      'Marketplace | WD Web Solutions',
+      'Browse and purchase website design and development services and products from WD Web Solutions.'
+    );
+
     this.isLoading.set(true);
     this.errorMessage.set('');
 

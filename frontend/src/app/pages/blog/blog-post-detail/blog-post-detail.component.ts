@@ -7,6 +7,7 @@ import { finalize } from 'rxjs';
 import { BlogComment, BlogPostDetail } from '../../../core/models/blog.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BlogService } from '../../../core/services/blog.service';
+import { SeoService } from '../../../core/services/seo.service';
 
 @Component({
   selector: 'app-blog-post-detail',
@@ -20,6 +21,7 @@ export class BlogPostDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly blogService = inject(BlogService);
   private readonly authService = inject(AuthService);
+  private readonly seoService = inject(SeoService);
 
   readonly currentUser = this.authService.currentUser;
 
@@ -137,6 +139,7 @@ export class BlogPostDetailComponent implements OnInit {
       .subscribe({
         next: post => {
           this.post.set(post);
+          this.seoService.updatePage(`${post.title} | WD Web Solutions`, post.excerpt);
           this.loadComments();
         },
         error: () => this.notFound.set(true)

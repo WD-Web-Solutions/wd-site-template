@@ -19,6 +19,8 @@ import {
 
 import { HeroVideoComponent } from '../../shared/components/hero-video/hero-video.component';
 
+import { SeoService } from '../../core/services/seo.service';
+
 
 
 @Component({
@@ -78,9 +80,20 @@ export class ContactComponent {
 
     private readonly formBuilder: FormBuilder,
 
-    private readonly contactService: ContactService
+    private readonly contactService: ContactService,
+
+    private readonly seoService: SeoService
 
   ) {
+
+
+    this.seoService.updatePage(
+
+      'Contact | WD Web Solutions',
+
+      'Get in touch with WD Web Solutions to discuss your website design, development, or e-commerce project.'
+
+    );
 
 
     this.contactForm =

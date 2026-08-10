@@ -7,6 +7,7 @@ import { finalize } from 'rxjs';
 import { ItemSummary } from '../../../core/models/marketplace-item.model';
 import { CartService } from '../../../core/services/cart.service';
 import { MarketplaceService } from '../../../core/services/marketplace.service';
+import { SeoService } from '../../../core/services/seo.service';
 import { WishlistService } from '../../../core/services/wishlist.service';
 
 @Component({
@@ -23,6 +24,7 @@ export class ItemDetailComponent implements OnInit {
   private readonly marketplaceService = inject(MarketplaceService);
   private readonly cartService = inject(CartService);
   private readonly wishlistService = inject(WishlistService);
+  private readonly seoService = inject(SeoService);
 
   readonly item = signal<ItemSummary | null>(null);
   readonly isLoading = signal(false);
@@ -45,7 +47,10 @@ export class ItemDetailComponent implements OnInit {
       .getItem(slug)
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
-        next: item => this.item.set(item),
+        next: item => {
+          this.item.set(item);
+          this.seoService.updatePage(`${item.name} | WD Web Solutions`, item.description);
+        },
         error: () => this.errorMessage.set('That item could not be found.')
       });
 

@@ -6,6 +6,7 @@ import { finalize } from 'rxjs';
 
 import { CartService } from '../../core/services/cart.service';
 import { MarketplaceService } from '../../core/services/marketplace.service';
+import { SeoService } from '../../core/services/seo.service';
 
 @Component({
   selector: 'app-cart',
@@ -18,12 +19,20 @@ import { MarketplaceService } from '../../core/services/marketplace.service';
 export class CartComponent {
   private readonly cartService = inject(CartService);
   private readonly marketplaceService = inject(MarketplaceService);
+  private readonly seoService = inject(SeoService);
 
   readonly lines = this.cartService.lines;
   readonly totalCents = this.cartService.totalCents;
 
   readonly isCheckingOut = signal(false);
   readonly errorMessage = signal('');
+
+  constructor() {
+    this.seoService.updatePage(
+      'Your Cart | WD Web Solutions',
+      'Review your cart and check out securely with WD Web Solutions.'
+    );
+  }
 
   updateQuantity(itemId: string, quantity: number): void {
     if (quantity < 1) {

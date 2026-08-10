@@ -5,6 +5,7 @@ import { finalize } from 'rxjs';
 
 import { BlogPostSummary } from '../../core/models/blog.model';
 import { BlogService } from '../../core/services/blog.service';
+import { SeoService } from '../../core/services/seo.service';
 import { HeroVideoComponent } from '../../shared/components/hero-video/hero-video.component';
 
 @Component({
@@ -17,6 +18,7 @@ import { HeroVideoComponent } from '../../shared/components/hero-video/hero-vide
 })
 export class BlogComponent implements OnInit {
   private readonly blogService = inject(BlogService);
+  private readonly seoService = inject(SeoService);
 
   readonly posts = signal<BlogPostSummary[]>([]);
   readonly tags = signal<string[]>([]);
@@ -25,6 +27,11 @@ export class BlogComponent implements OnInit {
   readonly errorMessage = signal('');
 
   ngOnInit(): void {
+    this.seoService.updatePage(
+      'Blog | WD Web Solutions',
+      'Articles and updates on website design, development, and growing your business online from WD Web Solutions.'
+    );
+
     this.blogService.listTags().subscribe({
       next: tags => this.tags.set(tags)
     });

@@ -10,6 +10,7 @@ import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { AuthService } from '../../core/services/auth.service';
+import { SeoService } from '../../core/services/seo.service';
 
 function passwordsMatchValidator(control: AbstractControl): ValidationErrors | null {
   const password = control.get('password')?.value;
@@ -29,6 +30,7 @@ export class RegisterComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly seoService = inject(SeoService);
 
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal('');
@@ -42,6 +44,13 @@ export class RegisterComponent {
     },
     { validators: passwordsMatchValidator }
   );
+
+  constructor() {
+    this.seoService.updatePage(
+      'Create Account | WD Web Solutions',
+      'Create a WD Web Solutions account to book consultations, track orders, and more.'
+    );
+  }
 
   submitRegisterForm(): void {
     this.errorMessage.set('');

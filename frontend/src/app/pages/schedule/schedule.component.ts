@@ -7,6 +7,7 @@ import { finalize } from 'rxjs';
 import { AppointmentDetail, SlotSummary } from '../../core/models/scheduling.model';
 import { AuthService } from '../../core/services/auth.service';
 import { SchedulingService } from '../../core/services/scheduling.service';
+import { SeoService } from '../../core/services/seo.service';
 
 @Component({
   selector: 'app-schedule',
@@ -19,6 +20,7 @@ import { SchedulingService } from '../../core/services/scheduling.service';
 export class ScheduleComponent implements OnInit {
   private readonly schedulingService = inject(SchedulingService);
   private readonly authService = inject(AuthService);
+  private readonly seoService = inject(SeoService);
 
   readonly isAuthenticated = this.authService.isAuthenticated;
 
@@ -38,6 +40,11 @@ export class ScheduleComponent implements OnInit {
   readonly pendingAppointmentIds = signal<Set<string>>(new Set());
 
   ngOnInit(): void {
+    this.seoService.updatePage(
+      'Schedule a Consultation | WD Web Solutions',
+      'Book a free consultation with WD Web Solutions to discuss your website design or development project.'
+    );
+
     this.loadOpenSlots();
     if (this.isAuthenticated) {
       this.loadMyAppointments();

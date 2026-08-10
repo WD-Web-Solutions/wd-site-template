@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { AuthService } from '../../core/services/auth.service';
+import { SeoService } from '../../core/services/seo.service';
 
 @Component({
   selector: 'app-login',
@@ -17,6 +18,7 @@ export class LoginComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly seoService = inject(SeoService);
 
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal('');
@@ -25,6 +27,13 @@ export class LoginComponent {
     emailAddress: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]]
   });
+
+  constructor() {
+    this.seoService.updatePage(
+      'Log In | WD Web Solutions',
+      'Log in to your WD Web Solutions account to manage bookings, orders, and more.'
+    );
+  }
 
   submitLoginForm(): void {
     this.errorMessage.set('');

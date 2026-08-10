@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OrderSummary } from '../../../core/models/order.model';
 import { CartService } from '../../../core/services/cart.service';
 import { MarketplaceService } from '../../../core/services/marketplace.service';
+import { SeoService } from '../../../core/services/seo.service';
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 15;
@@ -21,6 +22,7 @@ export class CheckoutSuccessComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly marketplaceService = inject(MarketplaceService);
   private readonly cartService = inject(CartService);
+  private readonly seoService = inject(SeoService);
 
   readonly order = signal<OrderSummary | null>(null);
   readonly errorMessage = signal('');
@@ -30,6 +32,11 @@ export class CheckoutSuccessComponent implements OnInit, OnDestroy {
   private cartCleared = false;
 
   ngOnInit(): void {
+    this.seoService.updatePage(
+      'Order Confirmation | WD Web Solutions',
+      'Your order confirmation from WD Web Solutions.'
+    );
+
     const sessionId = this.route.snapshot.queryParamMap.get('session_id');
     if (!sessionId) {
       this.errorMessage.set('Missing checkout session.');
