@@ -38,6 +38,7 @@ from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.dashboard import DashboardService
 from site_api.services.email import EmailService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
@@ -714,6 +715,21 @@ def testimonial_service(
 
 
 @pytest.fixture
+def dashboard_service(
+    repository: InMemoryContactRequestRepository,
+    appointment_repository: InMemoryAppointmentRepository,
+    order_repository: InMemoryOrderRepository,
+    testimonial_repository: InMemoryTestimonialRepository,
+) -> DashboardService:
+    return DashboardService(
+        repository,
+        appointment_repository,
+        order_repository,
+        testimonial_repository,
+    )
+
+
+@pytest.fixture
 def app(
     contact_service: ContactRequestService,
     auth_service: AuthService,
@@ -724,6 +740,7 @@ def app(
     chat_service: ChatService,
     marketplace_service: MarketplaceService,
     testimonial_service: TestimonialService,
+    dashboard_service: DashboardService,
 ) -> FastAPI:
     settings = Settings(environment="test", cors_origins=[], database_url=None)
     return create_app(
@@ -737,6 +754,7 @@ def app(
         chat_service_provider=lambda: chat_service,
         marketplace_service_provider=lambda: marketplace_service,
         testimonial_service_provider=lambda: testimonial_service,
+        dashboard_service_provider=lambda: dashboard_service,
     )
 
 

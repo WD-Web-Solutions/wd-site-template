@@ -32,6 +32,7 @@ from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
 from site_api.services.contact_requests import ContactRequestService
+from site_api.services.dashboard import DashboardService
 from site_api.services.email import EmailService
 from site_api.services.marketplace import MarketplaceService
 from site_api.services.scheduling import SchedulingService
@@ -99,11 +100,18 @@ def get_email_service(
     )
 
 
-def get_contact_request_service(
+def get_contact_request_repository(
     session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyContactRequestRepository:
+    return SqlAlchemyContactRequestRepository(session)
+
+
+def get_contact_request_service(
+    repository: Annotated[
+        SqlAlchemyContactRequestRepository, Depends(get_contact_request_repository)
+    ],
     email_service: Annotated[EmailService, Depends(get_email_service)],
 ) -> ContactRequestService:
-    repository = SqlAlchemyContactRequestRepository(session)
     return ContactRequestService(repository, email_service)
 
 
@@ -301,3 +309,23 @@ def get_testimonial_service(
     repository: Annotated[SqlAlchemyTestimonialRepository, Depends(get_testimonial_repository)],
 ) -> TestimonialService:
     return TestimonialService(repository)
+
+
+def get_dashboard_service(
+    contact_repository: Annotated[
+        SqlAlchemyContactRequestRepository, Depends(get_contact_request_repository)
+    ],
+    appointment_repository: Annotated[
+        SqlAlchemyAppointmentRepository, Depends(get_appointment_repository)
+    ],
+    order_repository: Annotated[SqlAlchemyOrderRepository, Depends(get_order_repository)],
+    testimonial_repository: Annotated[
+        SqlAlchemyTestimonialRepository, Depends(get_testimonial_repository)
+    ],
+) -> DashboardService:
+    return DashboardService(
+        contact_repository,
+        appointment_repository,
+        order_repository,
+        testimonial_repository,
+    )
