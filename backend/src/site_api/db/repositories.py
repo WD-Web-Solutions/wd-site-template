@@ -27,7 +27,11 @@ from site_api.domain.blog import (
     PostStatus,
     TagSubscription,
 )
-from site_api.domain.contacts import ContactRequest
+from site_api.domain.contacts import (
+    ContactRequest,
+    ContactRequestNotFoundError,
+    ContactRequestStatus,
+)
 from site_api.domain.marketplace import (
     ItemNotFoundError,
     MarketplaceItem,
@@ -367,6 +371,21 @@ class SqlAlchemyTagSubscriptionRepository:
         )
 
 
+def _to_domain_contact_request(record: ContactRequestRecord) -> ContactRequest:
+    return ContactRequest(
+        id=record.id,
+        name=record.name,
+        email_address=record.email_address,
+        company=record.company,
+        phone=record.phone,
+        service=record.service,
+        message=record.message,
+        status=ContactRequestStatus(record.status),
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
 class SqlAlchemyContactRequestRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -383,10 +402,31 @@ class SqlAlchemyContactRequestRepository:
                 message=contact_request.message,
                 status=contact_request.status.value,
                 created_at=contact_request.created_at,
+                updated_at=contact_request.updated_at,
             )
         )
         await self._session.flush()
         return contact_request
+
+    async def update(self, contact_request: ContactRequest) -> ContactRequest:
+        record = await self._session.get(ContactRequestRecord, contact_request.id)
+        if record is None:
+            raise ContactRequestNotFoundError
+        record.status = contact_request.status.value
+        record.updated_at = contact_request.updated_at
+        await self._session.flush()
+        return _to_domain_contact_request(record)
+
+    async def get_by_id(self, contact_request_id: UUID) -> ContactRequest | None:
+        record = await self._session.get(ContactRequestRecord, contact_request_id)
+        return None if record is None else _to_domain_contact_request(record)
+
+    async def list_all(self, status: ContactRequestStatus | None = None) -> list[ContactRequest]:
+        query = select(ContactRequestRecord).order_by(ContactRequestRecord.created_at.desc())
+        if status is not None:
+            query = query.where(ContactRequestRecord.status == status.value)
+        result = await self._session.execute(query)
+        return [_to_domain_contact_request(record) for record in result.scalars().all()]
 
 
 def _to_domain_appointment(record: AppointmentRecord) -> Appointment:

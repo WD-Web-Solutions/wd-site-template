@@ -266,6 +266,18 @@ export const routes: Routes = [
 
 
       {
+        path: 'admin/leads',
+
+        canActivate: [adminGuard],
+
+        loadComponent: () =>
+          import('./pages/admin-leads/admin-leads.component')
+            .then(m => m.AdminLeadsComponent)
+
+      },
+
+
+      {
         path: 'testimonials/write',
 
         loadComponent: () =>

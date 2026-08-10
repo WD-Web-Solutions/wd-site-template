@@ -16,7 +16,11 @@ from site_api.domain.blog import (
     PostNotFoundError,
     TagSubscription,
 )
-from site_api.domain.contacts import ContactRequest
+from site_api.domain.contacts import (
+    ContactRequest,
+    ContactRequestNotFoundError,
+    ContactRequestStatus,
+)
 from site_api.domain.marketplace import (
     ItemNotFoundError,
     MarketplaceItem,
@@ -46,6 +50,25 @@ class InMemoryContactRequestRepository:
     async def add(self, contact_request: ContactRequest) -> ContactRequest:
         self.contact_requests.append(contact_request)
         return contact_request
+
+    async def update(self, contact_request: ContactRequest) -> ContactRequest:
+        for index, existing in enumerate(self.contact_requests):
+            if existing.id == contact_request.id:
+                self.contact_requests[index] = contact_request
+                return contact_request
+        raise ContactRequestNotFoundError
+
+    async def get_by_id(self, contact_request_id: UUID) -> ContactRequest | None:
+        for contact_request in self.contact_requests:
+            if contact_request.id == contact_request_id:
+                return contact_request
+        return None
+
+    async def list_all(self, status: ContactRequestStatus | None = None) -> list[ContactRequest]:
+        results = self.contact_requests
+        if status is not None:
+            results = [request for request in results if request.status is status]
+        return sorted(results, key=lambda request: request.created_at, reverse=True)
 
 
 class InMemoryUserRepository:

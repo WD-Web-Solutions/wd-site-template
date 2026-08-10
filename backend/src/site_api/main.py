@@ -26,6 +26,7 @@ from site_api.api.routes import (
     blog_admin,
     chat,
     contact_requests,
+    contact_requests_admin,
     health,
     marketplace,
     marketplace_admin,
@@ -121,6 +122,7 @@ def create_app(
 
     application.include_router(health.router, prefix=resolved_settings.api_prefix)
     application.include_router(contact_requests.router, prefix=resolved_settings.api_prefix)
+    application.include_router(contact_requests_admin.router, prefix=resolved_settings.api_prefix)
     application.include_router(auth.router, prefix=resolved_settings.api_prefix)
     application.include_router(admin.router, prefix=resolved_settings.api_prefix)
     application.include_router(blog.router, prefix=resolved_settings.api_prefix)

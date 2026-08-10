@@ -7,6 +7,10 @@ from uuid import UUID
 
 class ContactRequestStatus(StrEnum):
     RECEIVED = "received"
+    CONTACTED = "contacted"
+    QUALIFIED = "qualified"
+    WON = "won"
+    LOST = "lost"
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +24,20 @@ class ContactRequest:
     message: str
     status: ContactRequestStatus
     created_at: datetime
+    updated_at: datetime
+
+
+class ContactRequestNotFoundError(Exception):
+    """Raised when a referenced contact request does not exist."""
 
 
 class ContactRequestRepository(Protocol):
     async def add(self, contact_request: ContactRequest) -> ContactRequest: ...
+
+    async def update(self, contact_request: ContactRequest) -> ContactRequest: ...
+
+    async def get_by_id(self, contact_request_id: UUID) -> ContactRequest | None: ...
+
+    async def list_all(
+        self, status: ContactRequestStatus | None = None
+    ) -> list[ContactRequest]: ...
