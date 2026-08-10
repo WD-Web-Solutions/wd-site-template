@@ -312,6 +312,25 @@ Hi, {{ currentUser()?.fullName }}
 
 
 
+<a
+
+routerLink="/account"
+
+routerLinkActive="text-blue-600"
+
+class="
+font-medium
+text-gray-600
+transition
+duration-300
+hover:text-blue-600
+"
+>
+My Account
+</a>
+
+
+
 @if(currentUser()?.role === 'admin')
 {
 
@@ -658,6 +677,19 @@ text-gray-600
 >
 Hi, {{ currentUser()?.fullName }}
 </p>
+
+
+<a
+routerLink="/account"
+(click)="closeMenu()"
+class="
+block
+transition
+hover:text-blue-600
+"
+>
+My Account
+</a>
 
 
 @if(currentUser()?.role === 'admin')
