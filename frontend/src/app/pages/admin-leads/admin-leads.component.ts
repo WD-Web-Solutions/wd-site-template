@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 
 import { LeadDetail, LeadNote, LeadStatus } from '../../core/models/lead.model';
+import { CsvExportService } from '../../core/services/csv-export.service';
 import { LeadAdminService } from '../../core/services/lead-admin.service';
 
 @Component({
@@ -16,6 +17,7 @@ import { LeadAdminService } from '../../core/services/lead-admin.service';
 })
 export class AdminLeadsComponent implements OnInit {
   private readonly leadAdminService = inject(LeadAdminService);
+  private readonly csvExportService = inject(CsvExportService);
 
   readonly leads = signal<LeadDetail[]>([]);
   readonly isLoading = signal(false);
@@ -160,5 +162,30 @@ export class AdminLeadsComponent implements OnInit {
 
   isPending(id: string): boolean {
     return this.pendingLeadIds().has(id);
+  }
+
+  exportCsv(): void {
+    const headers = [
+      'Name',
+      'Email',
+      'Company',
+      'Phone',
+      'Service',
+      'Status',
+      'Received',
+      'Follow-up'
+    ];
+    const rows = this.leads().map(lead => [
+      lead.name,
+      lead.emailAddress,
+      lead.company ?? '',
+      lead.phone ?? '',
+      lead.service,
+      lead.status,
+      lead.createdAt,
+      lead.followUpAt ?? ''
+    ]);
+
+    this.csvExportService.download('leads.csv', headers, rows);
   }
 }

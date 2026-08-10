@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { OrderStatus, OrderSummary } from '../../../core/models/order.model';
+import { CsvExportService } from '../../../core/services/csv-export.service';
 import { MarketplaceAdminService } from '../../../core/services/marketplace-admin.service';
 
 @Component({
@@ -16,6 +17,7 @@ import { MarketplaceAdminService } from '../../../core/services/marketplace-admi
 })
 export class AdminMarketplaceOrdersComponent implements OnInit {
   private readonly marketplaceAdminService = inject(MarketplaceAdminService);
+  private readonly csvExportService = inject(CsvExportService);
 
   readonly orders = signal<OrderSummary[]>([]);
   readonly isLoading = signal(false);
@@ -45,5 +47,18 @@ export class AdminMarketplaceOrdersComponent implements OnInit {
   onFilterChange(status: OrderStatus | ''): void {
     this.statusFilter.set(status);
     this.loadOrders();
+  }
+
+  exportCsv(): void {
+    const headers = ['Order ID', 'Status', 'Items', 'Total', 'Placed At'];
+    const rows = this.orders().map(order => [
+      order.id,
+      order.status,
+      order.items.map(item => `${item.itemName} x${item.quantity}`).join('; '),
+      (order.totalCents / 100).toFixed(2),
+      order.createdAt
+    ]);
+
+    this.csvExportService.download('orders.csv', headers, rows);
   }
 }
