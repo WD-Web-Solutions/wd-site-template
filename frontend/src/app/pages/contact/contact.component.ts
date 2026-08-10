@@ -58,17 +58,17 @@ export class ContactComponent {
 
   services = [
 
-    'Steel Coating & Striping',
+    'Website Design',
 
-    'Seal Coat & Asphalt',
+    'Web Application Development',
 
-    'Concrete Repairs',
+    'E-Commerce Solutions',
 
-    'Parking Lot Maintenance',
+    'Website Maintenance & Support',
 
-    'Commercial Signage',
+    'Branding',
 
-    'Wheel Stops & Speed Bumps'
+    'Other'
 
   ];
 

@@ -5,11 +5,12 @@ import { finalize } from 'rxjs';
 
 import { BlogPostSummary } from '../../core/models/blog.model';
 import { BlogService } from '../../core/services/blog.service';
+import { HeroVideoComponent } from '../../shared/components/hero-video/hero-video.component';
 
 @Component({
   selector: 'app-blog',
   standalone: true,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, HeroVideoComponent],
   templateUrl: './blog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './blog.component.css'

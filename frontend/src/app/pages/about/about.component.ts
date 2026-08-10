@@ -46,9 +46,9 @@ private seoService: SeoService
 
 this.seoService.updatePage(
 
-'About Your Company Name | Local Surface Experts',
+'About WD Web Solutions | Web Design & Development Agency',
 
-'Learn about Your Company Name, our family story, experience, and commitment to quality commercial surface solutions.'
+'Learn about WD Web Solutions, our story, experience, and commitment to building great websites and web applications.'
 
 );
 

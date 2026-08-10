@@ -8,16 +8,16 @@ export const GALLERY_ITEMS: GalleryItem[] = [
 {
 
 title:
-'Commercial Parking Lot Striping',
+'Corporate Website Redesign',
 
 category:
-'Striping',
+'Design',
 
 description:
-'Professional parking layouts designed for safety and visibility.',
+'A full website redesign focused on modern design and clear calls to action.',
 
 image:
-'/assets/images/gallery/striping.jpg'
+'/assets/images/gallery/website-redesign.jpg'
 
 },
 
@@ -26,16 +26,16 @@ image:
 {
 
 title:
-'Asphalt Maintenance Project',
+'Custom Web Application',
 
 category:
-'Asphalt',
+'Development',
 
 description:
-'Commercial asphalt protection and restoration services.',
+'A custom web app built to streamline internal operations.',
 
 image:
-'/assets/images/gallery/asphalt.jpg'
+'/assets/images/gallery/web-application.jpg'
 
 },
 
@@ -44,16 +44,16 @@ image:
 {
 
 title:
-'Steel Coating Application',
+'E-Commerce Storefront',
 
 category:
-'Coatings',
+'E-Commerce',
 
 description:
-'Durable coating solutions designed for high traffic areas.',
+'An online store built for a smooth, secure shopping experience.',
 
 image:
-'/assets/images/gallery/coating.jpg'
+'/assets/images/gallery/ecommerce-storefront.jpg'
 
 },
 
@@ -62,16 +62,16 @@ image:
 {
 
 title:
-'Commercial Surface Repair',
+'Website Maintenance Program',
 
 category:
-'Repairs',
+'Support',
 
 description:
-'Restoring damaged surfaces for safer properties.',
+'Ongoing updates and monitoring to keep a client site fast and secure.',
 
 image:
-'/assets/images/gallery/repair.jpg'
+'/assets/images/gallery/maintenance-program.jpg'
 
 },
 
@@ -80,16 +80,16 @@ image:
 {
 
 title:
-'Parking Safety Improvements',
+'Brand & Website Launch',
 
 category:
-'Safety',
+'Branding',
 
 description:
-'Wheel stops, markings, and property safety upgrades.',
+'A new brand identity paired with a matching website launch.',
 
 image:
-'/assets/images/gallery/safety.jpg'
+'/assets/images/gallery/brand-launch.jpg'
 
 },
 
@@ -98,16 +98,16 @@ image:
 {
 
 title:
-'Commercial Property Upgrade',
+'Mobile-Responsive Overhaul',
 
 category:
-'Commercial',
+'Design',
 
 description:
-'Complete surface improvement solutions.',
+'A mobile-first redesign improving usability across devices.',
 
 image:
-'/assets/images/gallery/commercial.jpg'
+'/assets/images/gallery/responsive-overhaul.jpg'
 
 }
 

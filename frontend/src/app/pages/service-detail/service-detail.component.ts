@@ -80,7 +80,7 @@ if(this.service)
 
 this.seoService.updatePage(
 
-`${this.service.title} | Your Company Name`,
+`${this.service.title} | WD Web Solutions`,
 
 this.service.description
 

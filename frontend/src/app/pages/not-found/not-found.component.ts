@@ -42,7 +42,7 @@ private seoService: SeoService
 
 this.seoService.updatePage(
 
-'Page Not Found | Your Company Name',
+'Page Not Found | WD Web Solutions',
 
 'The page you are looking for could not be found.'
 

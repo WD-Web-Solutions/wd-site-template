@@ -34,7 +34,7 @@ export class ContactService {
       .pipe(
         map(() => ({
           message:
-            'Your estimate request has been received. Your Company Name will contact you soon.'
+            'Your estimate request has been received. WD Web Solutions will contact you soon.'
         }))
       );
   }

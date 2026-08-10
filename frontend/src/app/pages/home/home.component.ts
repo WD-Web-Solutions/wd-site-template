@@ -56,9 +56,9 @@ private seoService: SeoService
 
 this.seoService.updatePage(
 
-'Your Company Name | Commercial Surface Solutions',
+'WD Web Solutions | Website Design & Development',
 
-'Professional asphalt, striping, coatings, and commercial property improvement services in Your City, State.'
+'Professional website design, web application development, e-commerce, and ongoing support for growing businesses in Austin, TX.'
 
 );
 

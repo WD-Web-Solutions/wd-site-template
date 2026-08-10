@@ -7,19 +7,19 @@ export const RESOURCES: Resource[] = [
 
 {
   title:
-    'Commercial Property Manager Guide',
+    'Small Business Website Guide',
 
   category:
-    'Property Management',
+    'Web Design',
 
   description:
-    'Helpful information for maintaining parking lots, safety markings, repairs, and long-term commercial property appearance.',
+    'Helpful information on planning, launching, and maintaining a website that represents your business well.',
 
   slug:
-    'commercial-property-manager-guide',
+    'small-business-website-guide',
 
   icon:
-    'building'
+    'display'
 
 },
 
@@ -27,16 +27,16 @@ export const RESOURCES: Resource[] = [
 
 {
   title:
-    'Parking Lot Maintenance Guide',
+    'Website Maintenance Checklist',
 
   category:
     'Maintenance',
 
   description:
-    'Learn how regular maintenance can protect asphalt surfaces and reduce long-term repair costs.',
+    'Learn how regular updates and monitoring can protect your website and reduce long-term issues.',
 
   slug:
-    'parking-lot-maintenance-guide',
+    'website-maintenance-checklist',
 
   icon:
     'wrench'
@@ -47,16 +47,16 @@ export const RESOURCES: Resource[] = [
 
 {
   title:
-    'Commercial Project Planning',
+    'Web Project Planning Guide',
 
   category:
     'Planning',
 
   description:
-    'What information helps contractors prepare accurate estimates for surface improvement projects.',
+    'What information helps our team prepare accurate estimates for your website or web app project.',
 
   slug:
-    'commercial-project-planning',
+    'web-project-planning-guide',
 
   icon:
     'clipboard-list'
@@ -67,16 +67,16 @@ export const RESOURCES: Resource[] = [
 
 {
   title:
-    'Working With Contractors',
+    'Working With a Web Development Agency',
 
   category:
     'Business Resources',
 
   description:
-    'Tips for property managers choosing reliable commercial surface professionals.',
+    'Tips for business owners choosing a reliable web design and development partner.',
 
   slug:
-    'working-with-contractors',
+    'working-with-a-web-agency',
 
   icon:
     'handshake'

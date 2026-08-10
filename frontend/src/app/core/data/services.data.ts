@@ -5,94 +5,95 @@ import { Service } from '../models/service.model';
 export const SERVICES: Service[] = [
 
   {
-    title: 'Asphalt Services',
+    title: 'Website Design',
 
-    slug: 'asphalt-services',
+    slug: 'website-design',
 
-    category: 'Asphalt',
+    category: 'Design',
 
     description:
-      'Professional asphalt installation, repairs, maintenance, and restoration solutions for commercial properties.',
+      'Custom, responsive website design built to represent your brand and convert visitors into customers.',
 
     details:
-      'Your Company Name provides commercial asphalt solutions designed to improve safety, appearance, and longevity. Our services include asphalt repairs, resurfacing, maintenance, and property improvements.',
+      'WD Web Solutions designs modern, mobile-first websites tailored to your business. From branding to layout, every site is built for performance, accessibility, and results.',
 
     icon:
-      'road',
+      'palette',
 
     image:
-      '/assets/images/services/asphalt.jpg'
+      '/assets/images/services/website-design.jpg'
 
   },
 
 
   {
-    title: 'Parking Lot Striping',
+    title: 'Web Application Development',
 
-    slug: 'parking-lot-striping',
+    slug: 'web-app-development',
 
-    category: 'Striping',
-
-    description:
-      'Professional parking lot layouts, ADA compliance markings, and safety striping solutions.',
-
-    details:
-      'Our parking lot striping services help businesses maintain safe, organized, and professional-looking properties. We provide layouts, ADA markings, re-striping, and custom parking solutions.',
-
-    icon:
-      'square-parking',
-
-    image:
-      '/assets/images/services/striping.jpg'
-
-  },
-
-
-  {
-    title: 'Concrete Services',
-
-    slug:
-      'concrete-services',
-
-    category:
-      'Concrete',
+    category: 'Development',
 
     description:
-      'Concrete repair, replacement, and improvement services designed for commercial properties.',
+      'Custom web applications and internal tools built with modern frameworks like Angular and FastAPI.',
 
     details:
-      'From repairs to new installations, Your Company Name delivers durable concrete solutions built for commercial environments.',
+      'We build custom web applications, client portals, and internal tools designed around your workflow, using modern frameworks for a fast, secure, and maintainable product.',
 
     icon:
-      'trowel',
+      'laptop-code',
 
     image:
-      '/assets/images/services/concrete.jpg'
+      '/assets/images/services/web-app-development.jpg'
 
   },
 
 
   {
     title:
-      'Surface Coatings',
+      'E-Commerce Solutions',
 
     slug:
-      'surface-coatings',
+      'ecommerce-solutions',
 
     category:
-      'Coatings',
+      'E-Commerce',
 
     description:
-      'Durable protective coatings designed to extend the life of commercial surfaces.',
+      'Online stores designed to sell, with secure checkout, inventory tools, and a smooth customer experience.',
 
     details:
-      'Protective coatings help commercial properties maintain durability, appearance, and resistance against heavy traffic and weather conditions.',
+      'WD Web Solutions builds e-commerce storefronts that make it easy for customers to browse, buy, and come back — with secure payments and tools to manage inventory and orders.',
 
     icon:
-      'shield-alt',
+      'cart-shopping',
 
     image:
-      '/assets/images/services/coatings.jpg'
+      '/assets/images/services/ecommerce-solutions.jpg'
+
+  },
+
+
+  {
+    title:
+      'Website Maintenance & Support',
+
+    slug:
+      'website-maintenance-support',
+
+    category:
+      'Support',
+
+    description:
+      'Ongoing maintenance, updates, and support to keep your website secure, fast, and up to date.',
+
+    details:
+      'From security updates to content changes and performance monitoring, our maintenance plans keep your website running smoothly so you can focus on your business.',
+
+    icon:
+      'wrench',
+
+    image:
+      '/assets/images/services/website-maintenance-support.jpg'
 
   }
 
