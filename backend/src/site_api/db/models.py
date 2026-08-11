@@ -1,7 +1,18 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -283,6 +294,36 @@ class DiscountCodeRecord(Base):
         server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+
+class PageViewRecord(Base):
+    __tablename__ = "page_views"
+    __table_args__ = (Index("ix_page_views_path_created_at", "path", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
+    path: Mapped[str] = mapped_column(String(500))
+    referrer: Mapped[str | None] = mapped_column(String(500))
+    session_id: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+
+class ClickEventRecord(Base):
+    __tablename__ = "click_events"
+    __table_args__ = (Index("ix_click_events_path_created_at", "path", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(PostgresUUID(as_uuid=True), primary_key=True)
+    path: Mapped[str] = mapped_column(String(500))
+    x_percent: Mapped[float] = mapped_column(Float)
+    y_percent: Mapped[float] = mapped_column(Float)
+    element_label: Mapped[str | None] = mapped_column(String(200))
+    session_id: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
     )

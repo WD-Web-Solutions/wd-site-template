@@ -8,6 +8,7 @@ from site_api.db.models import (
     AccountNoteRecord,
     AppointmentRecord,
     BlogPostRecord,
+    ClickEventRecord,
     CommentRecord,
     ContactRequestRecord,
     DiscountCodeRecord,
@@ -15,12 +16,14 @@ from site_api.db.models import (
     MarketplaceItemRecord,
     OrderItemRecord,
     OrderRecord,
+    PageViewRecord,
     TagSubscriptionRecord,
     TestimonialRecord,
     UserRecord,
     WishlistItemRecord,
 )
 from site_api.domain.account_notes import AccountNote
+from site_api.domain.analytics import ClickEvent, PageViewEvent, PageViewSummary
 from site_api.domain.blog import (
     BlogPost,
     Comment,
@@ -992,3 +995,75 @@ class SqlAlchemyDiscountCodeRepository:
             select(DiscountCodeRecord).order_by(DiscountCodeRecord.created_at.desc())
         )
         return [_to_domain_discount_code(record) for record in result.scalars().all()]
+
+
+def _to_domain_click(record: ClickEventRecord) -> ClickEvent:
+    return ClickEvent(
+        id=record.id,
+        path=record.path,
+        x_percent=record.x_percent,
+        y_percent=record.y_percent,
+        element_label=record.element_label,
+        session_id=record.session_id,
+        created_at=record.created_at,
+    )
+
+
+class SqlAlchemyAnalyticsRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def record_page_view(self, event: PageViewEvent) -> PageViewEvent:
+        self._session.add(
+            PageViewRecord(
+                id=event.id,
+                path=event.path,
+                referrer=event.referrer,
+                session_id=event.session_id,
+                created_at=event.created_at,
+            )
+        )
+        await self._session.flush()
+        return event
+
+    async def record_click(self, event: ClickEvent) -> ClickEvent:
+        self._session.add(
+            ClickEventRecord(
+                id=event.id,
+                path=event.path,
+                x_percent=event.x_percent,
+                y_percent=event.y_percent,
+                element_label=event.element_label,
+                session_id=event.session_id,
+                created_at=event.created_at,
+            )
+        )
+        await self._session.flush()
+        return event
+
+    async def top_pages(self, since: datetime, limit: int) -> list[PageViewSummary]:
+        result = await self._session.execute(
+            select(
+                PageViewRecord.path,
+                func.count().label("view_count"),
+                func.count(func.distinct(PageViewRecord.session_id)).label("unique_sessions"),
+            )
+            .where(PageViewRecord.created_at >= since)
+            .group_by(PageViewRecord.path)
+            .order_by(func.count().desc())
+            .limit(limit)
+        )
+        return [
+            PageViewSummary(
+                path=row.path, view_count=row.view_count, unique_sessions=row.unique_sessions
+            )
+            for row in result.all()
+        ]
+
+    async def click_points(self, path: str, since: datetime) -> list[ClickEvent]:
+        result = await self._session.execute(
+            select(ClickEventRecord).where(
+                ClickEventRecord.path == path, ClickEventRecord.created_at >= since
+            )
+        )
+        return [_to_domain_click(record) for record in result.scalars().all()]

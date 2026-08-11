@@ -15,6 +15,7 @@ from site_api.core.storage import LocalFileStorage
 from site_api.db.database import Database, DatabaseNotConfiguredError
 from site_api.db.repositories import (
     SqlAlchemyAccountNoteRepository,
+    SqlAlchemyAnalyticsRepository,
     SqlAlchemyAppointmentRepository,
     SqlAlchemyBlogPostRepository,
     SqlAlchemyCommentRepository,
@@ -30,6 +31,7 @@ from site_api.db.repositories import (
 )
 from site_api.domain.users import AuthenticatedUser, UserRole
 from site_api.services.admin import AdminService
+from site_api.services.analytics import AnalyticsService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
@@ -296,6 +298,18 @@ def get_discount_code_service(
     repository: Annotated[SqlAlchemyDiscountCodeRepository, Depends(get_discount_code_repository)],
 ) -> DiscountCodeService:
     return DiscountCodeService(repository)
+
+
+def get_analytics_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SqlAlchemyAnalyticsRepository:
+    return SqlAlchemyAnalyticsRepository(session)
+
+
+def get_analytics_service(
+    repository: Annotated[SqlAlchemyAnalyticsRepository, Depends(get_analytics_repository)],
+) -> AnalyticsService:
+    return AnalyticsService(repository)
 
 
 def get_marketplace_service(

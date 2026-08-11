@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from site_api.core.config import Settings
 from site_api.domain.account_notes import AccountNote
+from site_api.domain.analytics import ClickEvent, PageViewEvent, PageViewSummary
 from site_api.domain.blog import (
     BlogPost,
     Comment,
@@ -36,6 +37,7 @@ from site_api.domain.testimonials import Testimonial, TestimonialNotFoundError, 
 from site_api.domain.users import AccountStatus, User, UserNotFoundError, UserRole
 from site_api.main import create_app
 from site_api.services.admin import AdminService
+from site_api.services.analytics import AnalyticsService
 from site_api.services.auth import AuthService
 from site_api.services.blog import BlogService
 from site_api.services.chat import ChatService
@@ -515,6 +517,40 @@ class InMemoryDiscountCodeRepository:
         return sorted(self.discount_codes, key=lambda code: code.created_at, reverse=True)
 
 
+class InMemoryAnalyticsRepository:
+    def __init__(self) -> None:
+        self.page_views: list[PageViewEvent] = []
+        self.clicks: list[ClickEvent] = []
+
+    async def record_page_view(self, event: PageViewEvent) -> PageViewEvent:
+        self.page_views.append(event)
+        return event
+
+    async def record_click(self, event: ClickEvent) -> ClickEvent:
+        self.clicks.append(event)
+        return event
+
+    async def top_pages(self, since: datetime, limit: int) -> list[PageViewSummary]:
+        by_path: dict[str, list[PageViewEvent]] = {}
+        for view in self.page_views:
+            if view.created_at >= since:
+                by_path.setdefault(view.path, []).append(view)
+
+        summaries = [
+            PageViewSummary(
+                path=path,
+                view_count=len(views),
+                unique_sessions=len({view.session_id for view in views}),
+            )
+            for path, views in by_path.items()
+        ]
+        summaries.sort(key=lambda summary: summary.view_count, reverse=True)
+        return summaries[:limit]
+
+    async def click_points(self, path: str, since: datetime) -> list[ClickEvent]:
+        return [click for click in self.clicks if click.path == path and click.created_at >= since]
+
+
 class FakeStripeCheckoutSession:
     def __init__(self, session_id: str, url: str) -> None:
         self.id = session_id
@@ -770,6 +806,18 @@ def discount_code_service(
 
 
 @pytest.fixture
+def analytics_repository() -> InMemoryAnalyticsRepository:
+    return InMemoryAnalyticsRepository()
+
+
+@pytest.fixture
+def analytics_service(
+    analytics_repository: InMemoryAnalyticsRepository,
+) -> AnalyticsService:
+    return AnalyticsService(analytics_repository)
+
+
+@pytest.fixture
 def marketplace_service(
     marketplace_item_repository: InMemoryMarketplaceItemRepository,
     order_repository: InMemoryOrderRepository,
@@ -832,6 +880,7 @@ def app(
     testimonial_service: TestimonialService,
     dashboard_service: DashboardService,
     discount_code_service: DiscountCodeService,
+    analytics_service: AnalyticsService,
 ) -> FastAPI:
     settings = Settings(environment="test", cors_origins=[], database_url=None)
     return create_app(
@@ -847,6 +896,7 @@ def app(
         testimonial_service_provider=lambda: testimonial_service,
         dashboard_service_provider=lambda: dashboard_service,
         discount_code_service_provider=lambda: discount_code_service,
+        analytics_service_provider=lambda: analytics_service,
     )
 
 

@@ -302,6 +302,18 @@ export const routes: Routes = [
 
 
       {
+        path: 'admin/analytics',
+
+        canActivate: [adminGuard],
+
+        loadComponent: () =>
+          import('./pages/admin-analytics/admin-analytics.component')
+            .then(m => m.AdminAnalyticsComponent)
+
+      },
+
+
+      {
         path: 'account',
 
         loadComponent: () =>
