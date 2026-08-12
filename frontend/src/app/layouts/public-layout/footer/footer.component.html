@@ -114,7 +114,9 @@ Quick Links
 </h3>
 
 
-<div
+<nav
+
+aria-label="Footer navigation"
 
 class="
 mt-4
@@ -166,7 +168,7 @@ Contact
 </a>
 
 
-</div>
+</nav>
 
 
 </div>
@@ -183,22 +185,30 @@ Contact
 class="
 border-t
 border-gray-800
+px-6
 py-6
-text-center
 text-sm
 "
 
 >
 
+<div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+
 <p>© {{year}} WD Web Solutions. All rights reserved.</p>
 
-<p class="mt-2 space-x-4">
+<nav aria-label="Legal" class="flex flex-wrap justify-center gap-x-6 gap-y-2">
 
-<a routerLink="/privacy-policy" class="hover:text-white">Privacy Policy</a>
+<a routerLink="/privacy-policy" class="inline-flex min-h-6 items-center hover:text-white">
+Privacy Policy
+</a>
 
-<a routerLink="/terms" class="hover:text-white">Terms &amp; Conditions</a>
+<a routerLink="/terms" class="inline-flex min-h-6 items-center hover:text-white">
+Terms &amp; Conditions
+</a>
 
-</p>
+</nav>
+
+</div>
 
 </div>
 

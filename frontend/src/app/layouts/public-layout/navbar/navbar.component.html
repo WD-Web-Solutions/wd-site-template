@@ -1,5 +1,8 @@
 <header
+[class.site-navbar--home]="isHome()"
+[class.site-navbar--transparent]="isTransparent()"
 class="
+site-navbar
 sticky
 top-0
 z-50
@@ -10,7 +13,9 @@ bg-white
 >
 
 <nav
+aria-label="Primary navigation"
 class="
+site-navbar__primary
 mx-auto
 flex
 max-w-7xl
@@ -26,7 +31,9 @@ py-4
 <a
 routerLink="/"
 (click)="closeMenu()"
+aria-label="WD Web Solutions home"
 class="
+site-navbar__logo
 group
 flex
 items-center
@@ -57,10 +64,11 @@ group-hover:scale-105
 
 <div
 class="
+site-navbar__desktop-nav
 hidden
 items-center
 gap-8
-lg:flex
+xl:flex
 "
 >
 
@@ -68,6 +76,7 @@ lg:flex
 <a
 routerLink="/"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -95,6 +104,7 @@ Home
 <a
 routerLink="/about"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -122,6 +132,7 @@ About
 <a
 routerLink="/services"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -149,6 +160,7 @@ Services
 <a
 routerLink="/gallery"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -176,6 +188,7 @@ Gallery
 <a
 routerLink="/resources"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -203,6 +216,7 @@ Resources
 <a
 routerLink="/blog"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -230,6 +244,7 @@ Blog
 <a
 routerLink="/schedule"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -257,6 +272,7 @@ Schedule
 <a
 routerLink="/marketplace"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
 relative
 font-medium
@@ -290,10 +306,11 @@ Marketplace
 
 <div
 class="
+site-navbar__actions
 hidden
 items-center
 gap-4
-lg:flex
+xl:flex
 "
 >
 
@@ -317,6 +334,7 @@ Hi, {{ currentUser()?.fullName }}
 routerLink="/account"
 
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 
 class="
 font-medium
@@ -339,6 +357,7 @@ My Account
 routerLink="/admin/dashboard"
 
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 
 class="
 font-medium
@@ -425,7 +444,9 @@ Register
 <a
 routerLink="/cart"
 routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 class="
+site-navbar__cart
 relative
 text-xl
 text-gray-700
@@ -467,6 +488,7 @@ text-white
 routerLink="/contact"
 
 class="
+site-navbar__estimate
 rounded-lg
 bg-blue-600
 px-5
@@ -496,20 +518,31 @@ Request Estimate
 
 <button
 
+type="button"
+
 (click)="toggleMenu()"
 
+[attr.aria-expanded]="mobileMenuOpen"
+
+aria-controls="mobile-navigation"
+
+[attr.aria-label]="mobileMenuOpen ? 'Close main menu' : 'Open main menu'"
+
 class="
-text-3xl
+site-navbar__menu-button
+h-11
+w-11
+text-2xl
 text-gray-700
 transition
 duration-300
 hover:text-blue-600
-lg:hidden
+xl:hidden
 "
 
 >
 
-☰
+<span aria-hidden="true">{{mobileMenuOpen ? '×' : '☰'}}</span>
 
 </button>
 
@@ -525,7 +558,11 @@ lg:hidden
 @if(mobileMenuOpen)
 {
 
-<div
+<nav
+
+id="mobile-navigation"
+
+aria-label="Mobile navigation"
 
 class="
 border-t
@@ -533,7 +570,7 @@ border-gray-200
 bg-white
 px-6
 py-6
-lg:hidden
+xl:hidden
 "
 
 >
@@ -550,6 +587,8 @@ space-y-5
 
 <a
 routerLink="/"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -563,6 +602,8 @@ Home
 
 <a
 routerLink="/about"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -576,6 +617,8 @@ About
 
 <a
 routerLink="/services"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -589,6 +632,8 @@ Services
 
 <a
 routerLink="/gallery"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -602,6 +647,8 @@ Gallery
 
 <a
 routerLink="/resources"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -615,6 +662,8 @@ Resources
 
 <a
 routerLink="/blog"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -628,6 +677,8 @@ Blog
 
 <a
 routerLink="/schedule"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -641,6 +692,8 @@ Schedule
 
 <a
 routerLink="/marketplace"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -654,6 +707,8 @@ Marketplace
 
 <a
 routerLink="/cart"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -681,6 +736,8 @@ Hi, {{ currentUser()?.fullName }}
 
 <a
 routerLink="/account"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -697,6 +754,8 @@ My Account
 
 <a
 routerLink="/admin/dashboard"
+routerLinkActive="text-blue-600"
+ariaCurrentWhenActive="page"
 (click)="closeMenu()"
 class="
 block
@@ -782,7 +841,7 @@ Request Estimate
 </div>
 
 
-</div>
+</nav>
 
 }
 
